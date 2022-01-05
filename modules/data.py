@@ -18,6 +18,7 @@ def get_df_from_rds(path: str, localize=True) -> pd.DataFrame:
 
     return df
 
+
 def get_data_range(df: pd.DataFrame, start_date: str, end_date:str, ts_col='ts') -> pd.DataFrame:
     '''
     function to get data between a particular range
@@ -31,3 +32,16 @@ def get_data_range(df: pd.DataFrame, start_date: str, end_date:str, ts_col='ts')
     df_range = df[(df[ts_col]>=d1) & (df[ts_col]<=d2)]
 
     return df_range.reset_index().drop(['index'], axis=1)
+
+
+def filter_by_topic_param(df, topic, param:int, topic_col='topic', param_col='ST') -> pd.DataFrame:
+    '''
+    function to get data for a particular topic (site + meter) and register
+    '''
+    try:
+        df_filtered = df[(df[topic_col]==topic) & (df[param_col]==param)].drop(['index', 'TS'], axis=1)
+    except Exception as e:
+        df_filtered = df[(df[topic_col]==topic) & (df[param_col]==param)]
+        print(f"\nError filtering: {e}")
+
+    return df_filtered.reset_index().drop(['index'], axis=1)
