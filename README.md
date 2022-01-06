@@ -4,5 +4,5 @@
 pip install -r requirements.txt
 ```
 ```
-python run.py --file 6-dec.RDS
+python run.py --sites jobner --idling --start 2021-12-1 --end 2021-12-31 --delta_t 10
 ```

@@ -1,3 +1,4 @@
+from typing import Tuple
 import pandas as pd
 import pyreadr
 
@@ -23,25 +24,31 @@ def get_data_range(df: pd.DataFrame, start_date: str, end_date:str, ts_col='ts')
     '''
     function to get data between a particular range
     '''
-    d1 = start_date.split('-')
-    d2 = end_date.split('-')
+    d1 = [int(i) for i in start_date.split('-')]
+    d2 = [int(i) for i in end_date.split('-')]
 
     d1 = datetime(d1[0], d1[1], d1[2], 0, 0, 0, 0, IST)
     d2 = datetime(d2[0], d2[1], d2[2], 23, 59, 59, 0, IST)
 
     df_range = df[(df[ts_col]>=d1) & (df[ts_col]<=d2)]
 
-    return df_range.reset_index().drop(['index'], axis=1)
+    try:
+        return df_range.reset_index(drop=True)
+    except:
+        return df_range
 
 
-def filter_by_topic_param(df, topic, param:int, topic_col='topic', param_col='ST') -> pd.DataFrame:
+def filter_by_topic_param(df, topic:list, param:int, topic_col='topic', param_col='ST') -> pd.DataFrame:
     '''
     function to get data for a particular topic (site + meter) and register
     '''
     try:
-        df_filtered = df[(df[topic_col]==topic) & (df[param_col]==param)].drop(['index', 'TS'], axis=1)
+        df_filtered = df[(df[topic_col].isin(topic)) & (df[param_col]==param)].drop(['index', 'TS'], axis=1)
     except Exception as e:
-        df_filtered = df[(df[topic_col]==topic) & (df[param_col]==param)]
-        print(f"\nError filtering: {e}")
+        df_filtered = df[(df[topic_col].isin(topic)) & (df[param_col]==param)]
+        print(f"\nError filtering: {e}, fetching df...")
 
-    return df_filtered.reset_index().drop(['index'], axis=1)
+    try:
+        return df_filtered.reset_index(drop=True)
+    except:
+        return df_filtered
