@@ -5,8 +5,8 @@ from datetime import date
 from modules.config import MONTHS, TOPICS
 
 from modules.data import get_df_from_rds, get_data_range, filter_by_topic_param
-from modules.config import MONTHS
-from modules.algorithms import detect_dg_idling
+from modules.config import MONTHS, BASE_DIR
+from modules.algorithms import detect_dg_idling, detect_fuel_drain
 
 def main():
     parser = ArgumentParser()
@@ -19,11 +19,11 @@ def main():
     parser.add_argument("--start", type=str, help="The starting date for data")
     parser.add_argument("--end", type=str, help="The ending date for data")
 
-    parser.add_argument("--delta_t", type=int, help="Threshold in minutes for idling detection")
+    parser.add_argument("--delta_t", type=int, help="Threshold in minutes for idling detection", default=10)
 
     args = parser.parse_args()
 
-    base_dir = '../data/'
+    base_dir = BASE_DIR
     fuel_path = base_dir + f'fuellvl/{args.sites[0]}_fdt.RDS'
     event_path = base_dir + f'dgevents/{args.sites[0]}_eventdt.RDS'
     m_int = int(args.start.split('-')[1])
@@ -34,21 +34,23 @@ def main():
     dl = pd.Timedelta(f"{args.delta_t} minutes")
     
     fuel_df = get_data_range(get_df_from_rds(fuel_path), args.start, args.end)
-    print(f"fuel df fetched with sample: {fuel_df.head(2)}")
+    print(f"Fuel df fetched.")
     event_df = get_data_range(get_df_from_rds(event_path), args.start, args.end)
-    print(f"event df fetched with sample: {event_df.head(2)}")
+    print(f"Event df fetched.")
 
     if args.idling:
         print(f"Building Dataframe from {elm_path} with topics {TOPICS[args.sites[0]]} ...")
         elm_df = filter_by_topic_param(get_data_range(get_df_from_rds(elm_path), args.start, args.end), TOPICS[args.sites[0]], 155)
-        print(f"elm df fetched with sample: {elm_df.head(2)}")
+        print(f"Elm df fetched.")
 
         print("Starting idling detection...")
         detect_dg_idling(event_df, elm_df, fuel_df, dl)
         print("Detection done")
 
     if args.drain:
-        pass
+        print("Starting drain detection...")
+        detect_fuel_drain(event_df, fuel_df)
+        print("Detection done")
 
 
 

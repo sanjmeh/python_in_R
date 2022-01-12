@@ -1,6 +1,7 @@
 import pytz
 
 IST = pytz.timezone('Asia/Kolkata')
+BASE_DIR = '../data/'
 
 MONTHS = {
     1: 'jan',
