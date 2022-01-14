@@ -7,8 +7,8 @@ import os
 DIR = Path(__file__).resolve().parent.parent.parent
 
 IST = pytz.timezone('Asia/Kolkata')
-BASE_DIR = os.path.join(DIR, 'data\\')
-VEHICLE_DIR = os.path.join(BASE_DIR, 'VehicleReports\\')
+BASE_DIR = os.path.join(DIR, 'data/')
+VEHICLE_DIR = os.path.join(BASE_DIR, 'VehicleReports/')
 
 VEHICLE_LIST = pd.read_csv(os.path.join(DIR, 'Mindshift-GH/vehicle_list.csv'), header=None).values
 
