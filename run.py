@@ -24,6 +24,9 @@ def main():
 
     parser.add_argument("--delta_t", type=int, help="Threshold in minutes for idling detection", default=10)
 
+    parser.add_argument("--ist", type=int, help="Threshold in minutes for idling detection", default=10)
+    parser.add_argument("--ie", type=int, help="Threshold in minutes for idling detection", default=10)
+
     args = parser.parse_args()
 
     base_dir = BASE_DIR
@@ -62,7 +65,7 @@ def main():
     if args.drain_ind:
         df_final_list = []
         print("Starting drain detection...")
-        for i, vehicle in tqdm(enumerate(args.sites)):
+        for i, vehicle in tqdm(enumerate(args.sites[args.ist: args.ie])):
             fuel_df_temp = filter_by_topic(fuel_df, vehicle)
             print(fuel_df_temp)
             df_final_list.append(detect_fuel_drain_ind(fuel_df_temp, name=vehicle))
