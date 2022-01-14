@@ -13,3 +13,8 @@ For Drain Detection
 ```
 python run.py --sites dand --drain --start 2021-8-1 --end 2021-8-31
 ```
+
+For Vehicle Drain Detection
+```
+python run.py --sites 'EXR-645' 'EXR-466' 'MGR-184(Motor Grader)' 'MGR-185(Motor Grader)' 'EXR-592' 'MGR-21' 'EXR-685' 'EXR-591' 'MGR-97'  --drain-ind --start 2021-8-1 --end 2021-8-31
+```
