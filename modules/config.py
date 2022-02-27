@@ -35,3 +35,11 @@ TOPICS = {
     'sawarda': ['saw001/ELM8420'],
     'jobner': ['jobner001/ELM8420']
 }
+
+SITE_CODES =  {
+    'bagru1': 'bagru1',
+    'bagru2': 'bagru2',
+    'sawarda': 'saw001',
+    'jobner': 'jobner001',
+    'dand': 'dand',
+}

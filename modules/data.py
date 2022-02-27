@@ -25,12 +25,36 @@ def localize_df(df) -> pd.DataFrame:
     '''
     # df = pyreadr.read_r(path)
     # df = df[None]
+    
     df['ts'] = pd.to_datetime(df['ts'])
 
     # print(df)
     
     # df.ts = df.ts.apply(lambda x: x.tz_localize('utc'))
-    df.ts = df.ts.apply(lambda x: x.astimezone(IST))
+    try:
+        df.ts = df.ts.apply(lambda x: x.astimezone(IST))
+        # print(df)
+    except:
+        df.ts = df.ts.apply(lambda x: x.tz_localize(IST))
+        # print(df)
+        # df.ts = df.ts.apply(lambda x: x.astimezone(IST))
+        # print(df)
+    
+    return df
+
+def todatetime_df(df, cols) -> pd.DataFrame:
+    '''
+    function to convert rds file to dataframe
+    '''
+    # df = pyreadr.read_r(path)
+    # df = df[None]
+
+    # print(df)
+    
+    for col in cols:
+        df[col] = pd.to_datetime(df[col])
+        df[col] = df[col].apply(lambda x: x.tz_localize('utc'))
+        df[col+'_IST'] = df[col].apply(lambda x: x.astimezone(IST))
     return df
 
 def get_data_range(df: pd.DataFrame, start_date: str, end_date:str, ts_col='ts') -> pd.DataFrame:
@@ -73,7 +97,7 @@ def filter_by_topic(df, topic:str, topic_col='veh') -> pd.DataFrame:
     # try:
     #     df_filtered = df[df[topic_col].isin(topic)].drop(['index', 'TS'], axis=1)
     # except Exception as e:
-    df_filtered = df[df[topic_col].isin(topic)]
+    df_filtered = df[df[topic_col]==topic]
         # print(f"\nError filtering: {e}, fetching df...")
 
     try:

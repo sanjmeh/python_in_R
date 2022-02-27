@@ -1,0 +1,25 @@
+date
+day
+EB operation time
+Missing hours per day
+EB Wh
+EB Wh (ignition based)
+Projected EB run hours
+Projected EB Wh
+Total interpolated EB Wh
+DG operation time
+DG Ignition time
+DG hours diff
+DG Wh
+DG Wh (ignition based)
+Projected DG run hours
+Projected DG Wh
+Total interpolated DG Wh
+Battery Charging time
+Battery Charging (Watts and DCV)
+Battery Discharging time
+Battery Discharging (Watts and DCV)
+AC Zero Hours
+AC < 100 Hours
+Total AC Wh
+Total AC Wh Interpolated
