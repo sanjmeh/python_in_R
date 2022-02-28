@@ -1,0 +1,25 @@
+date
+day
+EB operation time: Time duration for which EB_Watts(103+105) > 100
+Missing hours per day 
+EB Wh: AUC for EB_Watts (103+105) for the entire day
+EB Wh (ignition based): ifelse (boundary_flag, EB Wh, Total AC Wh - DG Wh (ignition based) - Projected EB Wh - Projected DG Wh)
+Projected EB run hours: Missing hours per day - Projected DG run hours - AC < 100 hours
+Projected EB Wh: Missing hours per day * Median AC_Watts during missing duration on rest of the days
+Total interpolated EB Wh: EB Wh (ignition based)+ Projected EB Wh
+DG operation time: Time duration for which DG_Watts(107) > 100
+DG Ignition time: Event based DG run duration
+DG hours diff: DG operation time - DG Ignition time
+DG Wh: AUC for DG_Watts (107) for the entire day
+DG Wh (ignition based): Sum of AUCs for DG_Watts (107) within ignition duration
+Projected DG run hours: ifelse(DG hours diff < -0.2, DG hours diff, 0)
+Projected DG Wh: Projected DG run hours * Median AC_Watts during missing duration on rest of the days
+Total interpolated DG Wh: DG Wh (igniton based) + Projected DG Wh
+Battery Charging time: Time duration for which ibattTOT>20
+Battery Charging (Watts and DCV): Time duration for which DCV<51 and AC_Watts>3000
+Battery Discharging time: Time duration for which ibattTOT<-20
+Battery Discharging (Watts and DCV): Time duratin for which DCV<51 and AC_Watts<4000
+AC Zero Hours: Time duration for which AC_Watts(101)=0
+AC < 100 Hours: Time duration for which AC_Watts(101)<100 
+Total AC Wh: AUC for AC_Watts(101) for the entire day
+Total AC Wh Interpolated: EB Wh + DG Wh (igniton based) + Projected EB Wh + Projected DG Wh
