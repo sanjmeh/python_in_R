@@ -23,3 +23,12 @@ AC Zero Hours
 AC < 100 Hours
 Total AC Wh
 Total AC Wh Interpolated
+Initial Fuel Vol
+Final Fuel Vol
+Fuel Consumption
+Caliberation Drain
+Refuelling volume
+Idling Time
+CPH
+site
+month

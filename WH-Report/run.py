@@ -4,7 +4,7 @@ from nbformat import read
 import numpy as np
 import pandas as pd
 from argparse import ArgumentParser
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from Modules.algorithms import generate_wh_report
 from Modules.config import IST, SITE_CODES, SITE_REGISTER, UTC
 import time
@@ -18,20 +18,22 @@ warnings.filterwarnings("ignore")
 parser = ArgumentParser()
 
 parser.add_argument("-s", "--site", nargs='+', help="The name of site: {bagru1, bagru2, dand, jobner, sawarda}", default=['bagru1'])
-# parser.add_argument("--start", type=str, help="The starting date for data")
-# parser.add_argument("--end", type=str, help="The ending date for data")
-parser.add_argument("--elm_file", type=str, help="The file name for raw ELM data")
+parser.add_argument("--start", type=str, help="The starting date for data")
+parser.add_argument("--end", type=str, help="The ending date for data")
+parser.add_argument("--elm_file", type=str, help="The file path for raw ELM data")
+parser.add_argument("--fuel_file", type=str, help="The file path for raw fuel data")
+parser.add_argument("--event_file", type=str, help="The file path for raw event data")
 
 parser.add_argument("--delta_t", type=int, help="Threshold in minutes for idling detection", default=30)
 parser.add_argument("--agg_t", help="The aggregration frequency for data preparation", default=1)
 
 args = parser.parse_args()
 
-# d1 = [int(i) for i in args.start.split('-')]
-# d2 = [int(i) for i in args.end.split('-')]
+d1 = [int(i) for i in args.start.split('-')]
+d2 = [int(i) for i in args.end.split('-')]
 
-# start_datetime = datetime(d1[0], d1[1], d1[2], 0, 0, 0, 0, IST)
-# end_datetime = datetime(d2[0], d2[1], d2[2], 23, 59, 59, 0, IST)
+start_datetime = datetime(d1[0], d1[1], d1[2], 0, 0, 0, 0, IST)
+end_datetime = datetime(d2[0], d2[1], d2[2], 23, 59, 59, 0, IST)
 
 print(f"Reading raw ELM data from {args.elm_file} ...")
 st  = time.time()
@@ -53,7 +55,11 @@ df_main[f'ts'] = pd.to_datetime(df_main[f'ts'], utc=True)
 df_main[f'ts'] = df_main[f'ts'].apply(lambda x: x.astimezone(IST))
 
 # Preparing unique datelist
-date_list = np.unique(df_main[f'ts'].dt.date.values)
+date_list = []
+d = start_datetime.date()
+while(d<=end_datetime.date()):
+    date_list.append(d)
+    d += timedelta(days=1)
 print(f"Datetime processed (took {time.time()-st:.2f}s).")
 
 # Removing preliminary missing values
@@ -137,14 +143,16 @@ df['unixStamps'] = unixStamps
 df['unixStampsDiff'] = (df.unixStamps.values - start_unix)/3600
 print(f"Done adding unix stamp difference (took {time.time()-st:.2f}s).")
 
-f_name = f"{args.site[0].title()}_eventdt.csv"
+f_name = args.event_file
 print(f"Fetching event data from {f_name} ...")
 st = time.time()
 # rds_event = read_r(f_name)
 df_event = pd.read_csv(f_name)
 # df_event = rds_event[None]
-df_event[f'ts'] = pd.to_datetime(df_event[f'ts'], utc=False)
-df_event[f'ts'] = df_event[f'ts'].apply(lambda x: x.astimezone(IST)) 
+df_event[f'ts'] = pd.to_datetime(df_event[f'ts'])
+df_event[f'ts'] = df_event[f'ts'].apply(lambda x: x.tz_localize(IST)) 
+
+df_event = df_event[(df_event['site']==args.site[0].title()) & (df_event['ts']>=start_datetime) & (df_event['ts']<=end_datetime)].reset_index(drop=True)
 
 unixStamps = []
 for time_val in df_event[f'ts'].values:
@@ -167,16 +175,54 @@ for i, row in tqdm(df_event.iterrows()):
       ignition_list.append(None)
 
 df_event['ignition_list'] = ignition_list
+
+refuel_list = []
+for i, row in tqdm(df_event.iterrows()):
+    if row.type == 1:
+        ts_1 = row.unixStamps
+        ts_2 = None
+        for j in range(i, len(df_event)):
+            if df_event.loc[j, 'type'] == 2:
+                ts_2 = df_event.loc[j, 'unixStamps']
+                break
+        refuel_list.append((ts_1, ts_2))
+
+    else:
+      refuel_list.append(None)
+
+df_event['refuel_list'] = refuel_list
+df_event['ignition_list'] = ignition_list
 df_event['date'] = df_event.ts.dt.date.values
 
 print(f"Processed event data (took {time.time()-st:.2f}s).")
+print(df_event[df_event['type']==5])
+print(df_event[df_event['type']==1])
 
 df = df.dropna(subset=[f'acwatts'])
 df = df.reset_index(drop=True)
 df = df.fillna(0)
 
-s_name = f"{SITE_CODES[args.site[0]]}_report.csv"
+print(f"Reading and processing fuel data from {args.fuel_file}")
+st = time.time()
+if '.RDS' in args.fuel_file:
+    df_fuel = read_r(args.fuel_file)[None]
+elif '.csv' in args.fuel_file:
+    df_fuel = pd.read_csv(args.fuel_file)
+df_fuel.ts = pd.to_datetime(df_fuel.ts, utc=True)
+df_fuel.ts = df_fuel.ts.apply(lambda x: x.astimezone(IST))
+df_fuel["date"] = df_fuel.ts.dt.date.values
+
+unixStamps = []
+for time_val in df_fuel[f'ts'].values:
+    unixStamps.append((time_val - pd.Timestamp("1970-01-01")) // pd.Timedelta('1s'))
+
+df_fuel['unixStamps'] = unixStamps
+print(f"Processed fuel data (took {time.time()-st:.2f}s).")
+print(df_fuel)
+
+m = start_datetime.strftime("%b")
+s_name = f"{SITE_CODES[args.site[0]]}_{m}_report_sup.csv"
 print(f"Generating and saving report to {s_name} ...")
-output_df = generate_wh_report(df, df_event, date_list, SITE_CODES[args.site[0]], de)
+output_df = generate_wh_report(df, df_event, df_fuel, date_list, SITE_CODES[args.site[0]], de)
 output_df.to_csv(s_name)
 print(f"DONE!")
