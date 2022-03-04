@@ -1,7 +1,7 @@
 date
 day
 EB operation time: Time duration for which EB_Watts(103+105) > 100
-Missing hours per day 
+Missing hours per day : 101 register data missing for more than threshold hours
 EB Wh: AUC for EB_Watts (103+105) for the entire day
 EB Wh (ignition based): ifelse (boundary_flag, EB Wh, Total AC Wh - DG Wh (ignition based) - Projected EB Wh - Projected DG Wh)
 Projected EB run hours: Missing hours per day - Projected DG run hours - AC < 100 hours
