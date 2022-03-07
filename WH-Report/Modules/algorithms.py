@@ -428,8 +428,12 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
 
     output_df[STRUCT[5]].append(eb_wh)
 
-    output_df[STRUCT[8]].append(eb_wh + projected_eb_wh)
-    output_df[STRUCT[16]].append(dg_wh + projected_dg_wh)
+    if dg_ign_time < dg_time:
+      output_df[STRUCT[8]].append(ebwh + projected_eb_wh)
+      output_df[STRUCT[16]].append(dgwh + projected_dg_wh)
+    else:
+      output_df[STRUCT[8]].append(eb_wh + projected_eb_wh)
+      output_df[STRUCT[16]].append(dg_wh + projected_dg_wh)
 
     if missing_hrs == 0:
       if site_code == 'dand':
@@ -437,7 +441,10 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
       else:
         output_df[STRUCT[24]].append(twh)
     else:
-      output_df[STRUCT[24]].append(dg_wh + projected_dg_wh + projected_eb_wh + eb_wh)
+      if dg_ign_time >= dg_time:
+        output_df[STRUCT[24]].append(dg_wh + projected_dg_wh + projected_eb_wh + eb_wh)
+      else:
+        output_df[STRUCT[24]].append(dgwh + projected_dg_wh + projected_eb_wh + ebwh)
 
 
     consumption = initial_vol - final_vol + refuel
