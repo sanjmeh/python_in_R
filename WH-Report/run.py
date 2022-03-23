@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from argparse import ArgumentParser
 from datetime import datetime, date, timedelta
-from Modules.algorithms import generate_wh_report
+from Modules.algorithms import check_midnight_bug, generate_wh_report
 from Modules.config import IST, SITE_CODES, SITE_REGISTER, UTC
 import time
 import pytz
@@ -35,13 +35,29 @@ d2 = [int(i) for i in args.end.split('-')]
 start_datetime = datetime(d1[0], d1[1], d1[2], 0, 0, 0, 0, IST)
 end_datetime = datetime(d2[0], d2[1], d2[2], 23, 59, 59, 0, IST)
 
+# Preparing unique datelist
+date_list = []
+d = start_datetime.date()
+while(d<=end_datetime.date()):
+    date_list.append(d)
+    d += timedelta(days=1)
+
 print(f"Reading raw ELM data from {args.elm_file} ...")
 st  = time.time()
-if '.RDS' in args.elm_file:
-    rds_main = read_r(args.elm_file)
-    df_main = rds_main[None]
-elif '.csv' in args.elm_file:
-    df_main = pd.read_csv(args.elm_file)
+elm_file_base = args.elm_file.split('/')[:-1]
+elm_file_reg = args.elm_file.split('/')[-1]
+
+df_main_list = []
+for dt in date_list:
+    if '.RDS' in args.elm_file:
+        rds_main = read_r("/".join(elm_file_base) + '/' + elm_file_reg.replace("*", str(dt)))
+        df_main = rds_main[None]
+    elif '.csv' in args.elm_file:
+        df_main = pd.read_csv("/".join(elm_file_base) + '/' + elm_file_reg.replace("*", str(dt)))
+
+    df_main_list.append(df_main)
+
+df_main = pd.concat(df_main_list)
 
 print(f"File {args.elm_file} read (took {time.time()-st:.2f}s).")
 
@@ -54,12 +70,7 @@ st  = time.time()
 df_main[f'ts'] = pd.to_datetime(df_main[f'ts'], utc=True)
 df_main[f'ts'] = df_main[f'ts'].apply(lambda x: x.astimezone(IST))
 
-# Preparing unique datelist
-date_list = []
-d = start_datetime.date()
-while(d<=end_datetime.date()):
-    date_list.append(d)
-    d += timedelta(days=1)
+
 print(f"Datetime processed (took {time.time()-st:.2f}s).")
 
 # Removing preliminary missing values
@@ -204,10 +215,18 @@ df = df.fillna(0)
 
 print(f"Reading and processing fuel data from {args.fuel_file}")
 st = time.time()
-if '.RDS' in args.fuel_file:
-    df_fuel = read_r(args.fuel_file)[None]
-elif '.csv' in args.fuel_file:
-    df_fuel = pd.read_csv(args.fuel_file)
+fuel_file_base = args.elm_file.split('/')[:-1]
+fuel_file_reg = args.elm_file.split('/')[-1]
+
+df_fuel_list = []
+for dt in date_list:
+    if '.RDS' in args.fuel_file:
+        df_fuel = read_r("/".join(fuel_file_base) + '/' + fuel_file_reg.replace("*", str(dt)))[None]
+    elif '.csv' in args.fuel_file:
+        df_fuel = pd.read_csv("/".join(fuel_file_base) + '/' + fuel_file_reg.replace("*", str(dt)))
+    df_fuel_list.append(df_fuel)
+
+df_fuel = pd.concat(df_fuel_list)
 df_fuel.ts = pd.to_datetime(df_fuel.ts, utc=True)
 df_fuel.ts = df_fuel.ts.apply(lambda x: x.astimezone(IST))
 df_fuel["date"] = df_fuel.ts.dt.date.values
@@ -226,3 +245,5 @@ print(f"Generating and saving report to {s_name} ...")
 output_df = generate_wh_report(df, df_event, df_fuel, date_list, SITE_CODES[args.site[0]], de)
 output_df.to_csv(s_name)
 print(f"DONE!")
+
+# check_midnight_bug(df_event)

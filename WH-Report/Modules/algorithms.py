@@ -1,5 +1,5 @@
 import numpy as np
-from datetime import datetime, time
+from datetime import datetime, time, date
 import pandas as pd
 from .config import IST, STRUCT, WEEK_DAYS
 
@@ -149,6 +149,15 @@ def hrs_in_boundary(st, ed):
 
   return False
 
+def check_midnight_bug(df):
+  for i in range(1, 31):
+    f = df[((df['type']==5)|(df['type']==6))&(df['date']==date(2021,10,i))]
+    try:
+      if f['type'].iloc[0] != 5 or f['type'].iloc[-1] != 6:
+        print(date(2021,10,i))
+    except Exception as e:
+      # print(f"error {e}")
+      pass
 
 def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timedelta("30 minutes")):
   '''
