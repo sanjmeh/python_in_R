@@ -246,7 +246,7 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
     refuel = 0
     cons_ign = 0
 
-    # filtering all start events for the day
+    # filtering all start events 1 and 5 for the day
     event_5 = temp_df_event[(temp_df_event['type'] == 5)]
     event_1 = temp_df_event[(temp_df_event['type'] == 1)]
     
@@ -307,6 +307,7 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
       except Exception as e:
         print(f"event 1: {e}")
 
+    # filtering data points for ebwatts > 100
     try:
       _, e_df2 = [x for _, x in temp_df.groupby(temp_df[f'ebwatts'] > 100)]
       e_df2_list = [d for _, d in e_df2.groupby(e_df2.index - np.arange(len(e_df2)))]
@@ -314,6 +315,7 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
       print(f"EB issue: {d}")
       e_df2_list = []
 
+    # filtering data points for acwatts < 2
     try:
       _, a_df2 = [x for _, x in temp_df.groupby(temp_df[f'acwatts'] < 2)]
       a_df2_list = [d for _, d in a_df2.groupby(a_df2.index - np.arange(len(a_df2)))]
@@ -321,6 +323,7 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
       print(f"AC issue: {d}")
       a_df2_list = []
 
+    # filtering data points for acwatts < 100
     try:
       _, ac_df2 = [x for _, x in temp_df.groupby(temp_df[f'acwatts'] < 100)]
       ac_df2_list = [d for _, d in ac_df2.groupby(ac_df2.index - np.arange(len(ac_df2)))]
@@ -328,6 +331,7 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
       print(f"AC issue: {d}")
       ac_df2_list = []
 
+    # filtering data points for dgwatts > 100
     try:
       _, d_df2 = [x for _, x in temp_df.groupby(temp_df[f'dgwatts'] > 100)]
       d_df2_list = [d for _, d in d_df2.groupby(d_df2.index - np.arange(len(d_df2)))]
@@ -335,6 +339,7 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
       print(f"DG issue: {d}")
       d_df2_list = []
 
+    # filtering data points for ibattTOT > 20
     try:
       _, c_df2 = [x for _, x in temp_df.groupby(temp_df[f'ibattTOT'] > 20)]
       c_df2_list = [d for _, d in c_df2.groupby(c_df2.index - np.arange(len(c_df2)))]
@@ -342,6 +347,7 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
       print(f"Charge issue: {d}")
       c_df2_list = []
 
+    # filtering data points for ibattTOT < -20
     try:
       _, di_df2 = [x for _, x in temp_df.groupby(temp_df[f'ibattTOT'] < -20)]
       di_df2_list = [d for _, d in di_df2.groupby(di_df2.index - np.arange(len(di_df2)))]
@@ -350,6 +356,7 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
       di_df2_list = []
 
 # ################################################
+    # filtering data points for acwatts > 3000
     try:
       _, ch_df2 = [x for _, x in temp_df.groupby((temp_df[f'dcv'] < 51) & (temp_df[f'acwatts'] > 3000))]
       ch_df2_list = [d for _, d in ch_df2.groupby(ch_df2.index - np.arange(len(ch_df2)))]
@@ -357,6 +364,7 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
       print(f"Charge issue: {d}")
       ch_df2_list = []
 
+    # filtering data points for acwatts < 4000
     try:
       _, dis_df2 = [x for _, x in temp_df.groupby((temp_df[f'dcv'] < 51) & (temp_df[f'acwatts'] < 4000))]
       dis_df2_list = [d for _, d in dis_df2.groupby(dis_df2.index - np.arange(len(dis_df2)))]
@@ -366,6 +374,7 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
 
 ##################################################
 
+    # calculating values for fields derived from ELM data filtered above
     for e_df in e_df2_list:
       eb_time += e_df['unixStamps'].iloc[-1] - e_df['unixStamps'].iloc[0]
 
@@ -394,6 +403,8 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
     for ac_df in ac_df2_list:
       ac_100_time += ac_df['unixStamps'].iloc[-1] - ac_df['unixStamps'].iloc[0]
 
+
+    
     projected_dg_hrs = (dg_ign_time - dg_time)/3600 if (((dg_ign_time - dg_time)/3600 > 0.2) and (missing_hrs > 0)) else 0
     projected_eb_hrs = (missing_hrs - projected_dg_hrs) if missing_hrs > 0 else 0
     projected_dg_wh = projected_dg_hrs*median_wh
