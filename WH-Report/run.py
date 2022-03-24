@@ -180,7 +180,7 @@ try:
 except:
     df_event[f'ts'] = df_event[f'ts'].apply(lambda x: x.tz_convert(IST)) 
 
-df_event = df_event[(df_event['site']==args.site[0].title()) & (df_event['ts']>=start_datetime) & (df_event['ts']<=end_datetime)].reset_index(drop=True)
+df_event = df_event[(df_event['ts']>=start_datetime) & (df_event['ts']<=end_datetime)].reset_index(drop=True)
 
 print(f"Fetched event data (took {time.time()-st:.2f}s).")
 print(df_event)
