@@ -20,7 +20,7 @@ parser = ArgumentParser()
 parser.add_argument("-s", "--site", nargs='+', help="The name of site: {bagru1, bagru2, dand, jobner, sawarda}", default=['bagru1'])
 parser.add_argument("--start", type=str, help="The starting date for data")
 parser.add_argument("--end", type=str, help="The ending date for data")
-parser.add_argument("--elm_dir", type=str, help="The file path for raw ELM data")
+parser.add_argument("--elm_file", type=str, help="The file path for raw ELM data")
 parser.add_argument("--fuel_file", type=str, help="The file path for raw fuel data")
 parser.add_argument("--event_file", type=str, help="The file path for raw event data")
 
@@ -42,24 +42,24 @@ while(d<=end_datetime.date()):
     date_list.append(d)
     d += timedelta(days=1)
 
-print(f"Reading raw ELM data from {args.elm_dir} ...")
+print(f"Reading raw ELM data from {args.elm_file} ...")
 st  = time.time()
-elm_file_base = args.elm_dir.split('/')[:-1]
-elm_file_reg = args.elm_dir.split('/')[-1]
+elm_file_base = args.elm_file.split('/')[:-1]
+elm_file_reg = args.elm_file.split('/')[-1]
 
 df_main_list = []
 for dt in date_list:
-    if '.RDS' in args.elm_dir:
+    if '.RDS' in args.elm_file:
         rds_main = read_r("/".join(elm_file_base) + '/' + elm_file_reg.replace("*", str(dt)))
         df_main = rds_main[None]
-    elif '.csv' in args.elm_dir:
+    elif '.csv' in args.elm_file:
         df_main = pd.read_csv("/".join(elm_file_base) + '/' + elm_file_reg.replace("*", str(dt)))
 
     df_main_list.append(df_main)
 
 df_main = pd.concat(df_main_list)
 
-print(f"File {args.elm_dir} read (took {time.time()-st:.2f}s).")
+print(f"File {args.elm_file} read (took {time.time()-st:.2f}s).")
 
 de = pd.Timedelta(f"{args.delta_t} minutes")
 site_code = SITE_CODES[args.site[0]]
