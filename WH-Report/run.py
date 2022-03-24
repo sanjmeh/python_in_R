@@ -68,7 +68,7 @@ for dt in date_list:
 
     df_main_list.append(df_main)
 
-df_main = pd.concat(df_main_list)
+df_main = pd.concat(df_main_list).reset_index(drop=True)
 
 print(f"File {args.elm_file} read (took {time.time()-st:.2f}s).")
 print(df_main)
