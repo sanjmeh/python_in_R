@@ -20,11 +20,11 @@ parser = ArgumentParser()
 parser.add_argument("-s", "--site", nargs='+', help="The name of site: {bagru1, bagru2, dand, jobner, sawarda}", default=['bagru1'])
 parser.add_argument("--start", type=str, help="The starting date for data")
 parser.add_argument("--end", type=str, help="The ending date for data")
-parser.add_argument("--elm_file", type=str, help="The file path for raw ELM data")
+parser.add_argument("--elm_dir", type=str, help="The file path for raw ELM data")
 parser.add_argument("--fuel_file", type=str, help="The file path for raw fuel data")
 parser.add_argument("--event_file", type=str, help="The file path for raw event data")
 
-parser.add_argument("--delta_t", type=int, help="Threshold in minutes for idling detection", default=30)
+parser.add_argument("--delta_t", type=int, help="Threshold in minutes for detecting missing hrs", default=30)
 parser.add_argument("--agg_t", help="The aggregration frequency for data preparation", default=1)
 
 args = parser.parse_args()
@@ -42,24 +42,24 @@ while(d<=end_datetime.date()):
     date_list.append(d)
     d += timedelta(days=1)
 
-print(f"Reading raw ELM data from {args.elm_file} ...")
+print(f"Reading raw ELM data from {args.elm_dir} ...")
 st  = time.time()
-elm_file_base = args.elm_file.split('/')[:-1]
-elm_file_reg = args.elm_file.split('/')[-1]
+elm_file_base = args.elm_dir.split('/')[:-1]
+elm_file_reg = args.elm_dir.split('/')[-1]
 
 df_main_list = []
 for dt in date_list:
-    if '.RDS' in args.elm_file:
+    if '.RDS' in args.elm_dir:
         rds_main = read_r("/".join(elm_file_base) + '/' + elm_file_reg.replace("*", str(dt)))
         df_main = rds_main[None]
-    elif '.csv' in args.elm_file:
+    elif '.csv' in args.elm_dir:
         df_main = pd.read_csv("/".join(elm_file_base) + '/' + elm_file_reg.replace("*", str(dt)))
 
     df_main_list.append(df_main)
 
 df_main = pd.concat(df_main_list)
 
-print(f"File {args.elm_file} read (took {time.time()-st:.2f}s).")
+print(f"File {args.elm_dir} read (took {time.time()-st:.2f}s).")
 
 de = pd.Timedelta(f"{args.delta_t} minutes")
 site_code = SITE_CODES[args.site[0]]
@@ -157,14 +157,17 @@ print(f"Done adding unix stamp difference (took {time.time()-st:.2f}s).")
 f_name = args.event_file
 print(f"Fetching event data from {f_name} ...")
 st = time.time()
-# rds_event = read_r(f_name)
-df_event = pd.read_csv(f_name)
-# df_event = rds_event[None]
+rds_event = read_r(f_name)
+df_event = rds_event[None]
 df_event[f'ts'] = pd.to_datetime(df_event[f'ts'])
 df_event[f'ts'] = df_event[f'ts'].apply(lambda x: x.tz_localize(IST)) 
 
 df_event = df_event[(df_event['site']==args.site[0].title()) & (df_event['ts']>=start_datetime) & (df_event['ts']<=end_datetime)].reset_index(drop=True)
 
+print(f"Fetched event data (took {time.time()-st:.2f}s).")
+
+st = time.time()
+print(f"Processing event data from ...")
 unixStamps = []
 for time_val in df_event[f'ts'].values:
     unixStamps.append((time_val - pd.Timestamp("1970-01-01")) // pd.Timedelta('1s'))
@@ -213,20 +216,18 @@ df = df.dropna(subset=[f'acwatts'])
 df = df.reset_index(drop=True)
 df = df.fillna(0)
 
-print(f"Reading and processing fuel data from {args.fuel_file}")
+print(f"Reading fuel data from {args.fuel_file}...")
 st = time.time()
-fuel_file_base = args.elm_file.split('/')[:-1]
-fuel_file_reg = args.elm_file.split('/')[-1]
 
-df_fuel_list = []
-for dt in date_list:
-    if '.RDS' in args.fuel_file:
-        df_fuel = read_r("/".join(fuel_file_base) + '/' + fuel_file_reg.replace("*", str(dt)))[None]
-    elif '.csv' in args.fuel_file:
-        df_fuel = pd.read_csv("/".join(fuel_file_base) + '/' + fuel_file_reg.replace("*", str(dt)))
-    df_fuel_list.append(df_fuel)
+if '.RDS' in args.fuel_file:
+    df_fuel = read_r(args.fuel_file)[None]
+elif '.csv' in args.fuel_file:
+    df_fuel = pd.read_csv(args.fuel_file)
+print(f"Read fuel data (took {time.time()-st:.2f}s).")
 
-df_fuel = pd.concat(df_fuel_list)
+print(f"Processing fuel data...")
+st = time.time()
+
 df_fuel.ts = pd.to_datetime(df_fuel.ts, utc=True)
 df_fuel.ts = df_fuel.ts.apply(lambda x: x.astimezone(IST))
 df_fuel["date"] = df_fuel.ts.dt.date.values
@@ -245,5 +246,3 @@ print(f"Generating and saving report to {s_name} ...")
 output_df = generate_wh_report(df, df_event, df_fuel, date_list, SITE_CODES[args.site[0]], de)
 output_df.to_csv(s_name)
 print(f"DONE!")
-
-# check_midnight_bug(df_event)
