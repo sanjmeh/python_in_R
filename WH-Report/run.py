@@ -1,6 +1,3 @@
-from fileinput import filename
-from tracemalloc import start
-from nbformat import read
 import numpy as np
 import pandas as pd
 from argparse import ArgumentParser
@@ -11,6 +8,7 @@ import time
 import pytz
 from tqdm import tqdm
 from pyreadr import read_r
+import os
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -23,11 +21,24 @@ parser.add_argument("--end", type=str, help="The ending date for data")
 parser.add_argument("--elm_file", type=str, help="The file path for raw ELM data")
 parser.add_argument("--fuel_file", type=str, help="The file path for raw fuel data")
 parser.add_argument("--event_file", type=str, help="The file path for raw event data")
+parser.add_argument("--output_file", type=str, help="The file path for report output")
 
 parser.add_argument("--delta_t", type=int, help="Threshold in minutes for detecting missing hrs", default=30)
 parser.add_argument("--agg_t", help="The aggregration frequency for data preparation", default=1)
 
 args = parser.parse_args()
+
+if os.path.exists(args.fuel_file):
+    pass
+else:
+    print(f"Fuel file {args.fuel_file} does not exist.")
+    raise FileNotFoundError
+
+if os.path.exists(args.event_file):
+    pass
+else:
+    print(f"Event file {args.event_file} does not exist.")
+    raise FileNotFoundError
 
 d1 = [int(i) for i in args.start.split('-')]
 d2 = [int(i) for i in args.end.split('-')]
@@ -60,6 +71,7 @@ for dt in date_list:
 df_main = pd.concat(df_main_list)
 
 print(f"File {args.elm_file} read (took {time.time()-st:.2f}s).")
+print(df_main)
 
 de = pd.Timedelta(f"{args.delta_t} minutes")
 site_code = SITE_CODES[args.site[0]]
@@ -112,7 +124,7 @@ for g in groups:
             p.append((g['params'].values[0], val_df))
             df_dict_trans[g['params'].values[0]].append(val_df)
 
-base_date = pd.Timestamp("2050-01-01")
+base_date = pd.Timestamp("2100-01-01")
 
 shortest =  sorted(p, key=lambda x: (x[1].index.values[-1], base_date-x[1].index.values[0]))[0][1]
 shortest = shortest.reset_index()
@@ -157,17 +169,24 @@ print(f"Done adding unix stamp difference (took {time.time()-st:.2f}s).")
 f_name = args.event_file
 print(f"Fetching event data from {f_name} ...")
 st = time.time()
-rds_event = read_r(f_name)
-df_event = rds_event[None]
+if '.RDS' in args.fuel_file:
+    rds_event = read_r(f_name)
+    df_event = rds_event[None]
+elif '.csv' in args.fuel_file:
+    df_event = pd.read_csv(args.event_file)
 df_event[f'ts'] = pd.to_datetime(df_event[f'ts'])
-df_event[f'ts'] = df_event[f'ts'].apply(lambda x: x.tz_localize(IST)) 
+try:
+    df_event[f'ts'] = df_event[f'ts'].apply(lambda x: x.tz_localize(IST)) 
+except:
+    df_event[f'ts'] = df_event[f'ts'].apply(lambda x: x.tz_convert(IST)) 
 
 df_event = df_event[(df_event['site']==args.site[0].title()) & (df_event['ts']>=start_datetime) & (df_event['ts']<=end_datetime)].reset_index(drop=True)
 
 print(f"Fetched event data (took {time.time()-st:.2f}s).")
+print(df_event)
 
 st = time.time()
-print(f"Processing event data from ...")
+print(f"Processing event data ...")
 unixStamps = []
 for time_val in df_event[f'ts'].values:
     unixStamps.append((time_val - pd.Timestamp("1970-01-01")) // pd.Timedelta('1s'))
@@ -176,7 +195,7 @@ df_event['unixStamps'] = unixStamps
 
 ignition_list = []
 for i, row in tqdm(df_event.iterrows()):
-    if row.type == 5:
+    if row['type'] == 5:
         ts_1 = row.unixStamps
         ts_2 = None
         for j in range(i, len(df_event)):
@@ -192,7 +211,7 @@ df_event['ignition_list'] = ignition_list
 
 refuel_list = []
 for i, row in tqdm(df_event.iterrows()):
-    if row.type == 1:
+    if row['type'] == 1:
         ts_1 = row.unixStamps
         ts_2 = None
         for j in range(i, len(df_event)):
@@ -224,6 +243,7 @@ if '.RDS' in args.fuel_file:
 elif '.csv' in args.fuel_file:
     df_fuel = pd.read_csv(args.fuel_file)
 print(f"Read fuel data (took {time.time()-st:.2f}s).")
+print(df_fuel)
 
 print(f"Processing fuel data...")
 st = time.time()
@@ -241,7 +261,8 @@ print(f"Processed fuel data (took {time.time()-st:.2f}s).")
 print(df_fuel)
 
 m = start_datetime.strftime("%b")
-s_name = f"{SITE_CODES[args.site[0]]}_{m}_report_sup.csv"
+# s_name = f"{SITE_CODES[args.site[0]]}_{m}_report_sup.csv"
+s_name = args.output_file
 print(f"Generating and saving report to {s_name} ...")
 output_df = generate_wh_report(df, df_event, df_fuel, date_list, SITE_CODES[args.site[0]], de)
 output_df.to_csv(s_name)
