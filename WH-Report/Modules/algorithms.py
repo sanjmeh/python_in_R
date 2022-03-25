@@ -1,5 +1,5 @@
 import numpy as np
-from datetime import datetime, time, date
+from datetime import datetime, time, date, timedelta
 import pandas as pd
 from .config import IST, STRUCT, WEEK_DAYS
 
@@ -248,14 +248,42 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
 
     # filtering all start events 1 and 5 for the day
     event_5 = temp_df_event[(temp_df_event['type'] == 5)]
+    event_6 = temp_df_event[(temp_df_event['type'] == 6)]
     event_1 = temp_df_event[(temp_df_event['type'] == 1)]
+
+    overlap_flag = False
+    for m, r in event_5.iterrows():
+      for n, s in event_1.iterrows():
+        try:
+          if (r.ignition_list[0] <= s.refuel_list[1])  and  (r.ignition_list[1] >= s.refuel_list[0]):
+            overlap_flag = True
+            break
+        except Exception as e:
+          print(f"some issue {e}")
+
+    if len(event_5) > 0 and len(event_6) > 0:
+      if event_5.iloc[0].unixStamps > event_6.iloc[0].unixStamps:
+        st_tmp = temp_df_fuel[temp_df_fuel['unixStamps'] <= (event_6.iloc[0].unixStamps+60)].reset_index(drop=True)
+        q = datetime.combine(d - timedelta(days=1), time(18, 30, 0))
+        q = (q - pd.Timestamp("1970-01-01")) // pd.Timedelta('1s')
+
+        dg_ign_time += event_6.iloc[0].unixStamps - q
+        cons_ign += st_tmp.loc[0, 'rV'] - st_tmp.loc[len(st_tmp)-1, 'rV']
+          
+    elif len(event_5) == 0 and len(event_6)>0:
+      st_tmp = temp_df_fuel[temp_df_fuel['unixStamps'] <= (event_6.iloc[0].unixStamps+60)].reset_index(drop=True)
+      q = datetime.combine(d - timedelta(days=1), time(18, 30, 0))
+      q = (q - pd.Timestamp("1970-01-01")) // pd.Timedelta('1s')
+
+      dg_ign_time += event_6.iloc[0].unixStamps - q
+      cons_ign += st_tmp.loc[0, 'rV'] - st_tmp.loc[len(st_tmp)-1, 'rV']
     
     try:
       initial_vol = temp_df_fuel.loc[0, 'rV']
       final_vol = temp_df_fuel.loc[len(temp_df_fuel)-1, 'rV']
     except:
-      initial_vol =  -1
-      final_vol = -1
+      initial_vol =  None
+      final_vol = None
 
     # Iterating over filtered events to calculate dg ignition time and ignition based dg Wh
     for evi, evrow in event_5.iterrows():
@@ -466,17 +494,38 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
       else:
         output_df[STRUCT[24]].append(dgwh + projected_dg_wh + projected_eb_wh + ebwh)
 
-
-    consumption = initial_vol - final_vol + refuel
-
-    if refuel > 1:
-      cons_final = cons_ign
-      output_df[STRUCT[27]].append(cons_ign)
-      output_df[STRUCT[28]].append(consumption-cons_ign)
+    if initial_vol != None and final_vol!=None:
+      consumption = initial_vol - final_vol + refuel
+      if refuel < 12:
+          refuel = 0
+          cons_final = consumption
+      elif refuel > 12:
+          if not overlap_flag:
+              cons_final = cons_ign
+              drain = consumption - cons_ign
+          else:
+              cons_final = consumption
+      else:
+          cons_final = consumption
     else:
-      cons_final = consumption
-      output_df[STRUCT[27]].append(consumption)
-      output_df[STRUCT[28]].append(0)
+        drain = None
+        refuel = None
+        cons_ign = None
+        consumption = None
+        cons_final = None
+    # consumption = initial_vol - final_vol + refuel
+
+    # if refuel > 1:
+    #   cons_final = cons_ign
+    #   output_df[STRUCT[27]].append(cons_ign)
+    #   output_df[STRUCT[28]].append(consumption-cons_ign)
+    # else:
+    #   cons_final = consumption
+    #   output_df[STRUCT[27]].append(consumption)
+    #   output_df[STRUCT[28]].append(0)
+
+    output_df[STRUCT[27]].append(cons_final)
+    output_df[STRUCT[28]].append(drain)
 
     
 
