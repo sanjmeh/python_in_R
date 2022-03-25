@@ -245,6 +245,7 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
     dg_ign_time = 0
     refuel = 0
     cons_ign = 0
+    drain = 0
 
     # filtering all start events 1 and 5 for the day
     event_5 = temp_df_event[(temp_df_event['type'] == 5)]
