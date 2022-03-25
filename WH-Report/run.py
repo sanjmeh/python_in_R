@@ -60,13 +60,15 @@ elm_file_reg = args.elm_file.split('/')[-1]
 
 df_main_list = []
 for dt in date_list:
-    if '.RDS' in args.elm_file:
-        rds_main = read_r("/".join(elm_file_base) + '/' + elm_file_reg.replace("*", str(dt)))
-        df_main = rds_main[None]
-    elif '.csv' in args.elm_file:
-        df_main = pd.read_csv("/".join(elm_file_base) + '/' + elm_file_reg.replace("*", str(dt)))
-
-    df_main_list.append(df_main)
+    try:
+        if '.RDS' in args.elm_file:
+            rds_main = read_r("/".join(elm_file_base) + '/' + elm_file_reg.replace("*", str(dt)))
+            df_main = rds_main[None]
+        elif '.csv' in args.elm_file:
+            df_main = pd.read_csv("/".join(elm_file_base) + '/' + elm_file_reg.replace("*", str(dt)))
+        df_main_list.append(df_main)
+    except Exception as e:
+        print(e)
 
 df_main = pd.concat(df_main_list).reset_index(drop=True)
 
