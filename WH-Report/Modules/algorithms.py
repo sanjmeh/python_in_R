@@ -293,8 +293,8 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
     # Iterating over filtered events to calculate dg ignition time and ignition based dg Wh
     for evi, evrow in event_5.iterrows():
       try:
-        dq = datetime.fromtimestamp(evrow.ignition_list[1])
-        dq_ist = dq.astimezone(IST)
+        # dq = datetime.fromtimestamp(evrow.ignition_list[1])
+        dq_ist = datetime.fromtimestamp(evrow.ignition_list[1], tz=IST)
         if dq_ist.date() == d:
           dg_ign_time += evrow.ignition_list[1] - evrow.ignition_list[0]
         else:

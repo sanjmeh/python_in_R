@@ -58,22 +58,29 @@ st  = time.time()
 elm_file_base = args.elm_file.split('/')[:-1]
 elm_file_reg = args.elm_file.split('/')[-1]
 
-df_main_list = []
-for dt in date_list:
-    try:
-        if '.RDS' in args.elm_file:
-            rds_main = read_r("/".join(elm_file_base) + '/' + elm_file_reg.replace("*", str(dt)))
-            df_main = rds_main[None]
-        elif '.csv' in args.elm_file:
-            df_main = pd.read_csv("/".join(elm_file_base) + '/' + elm_file_reg.replace("*", str(dt)))
-        df_main_list.append(df_main)
-    except Exception as e:
-        print(e)
+# df_main_list = []
+# for dt in date_list:
+#     try:
+#         if '.RDS' in args.elm_file:
+#             rds_main = read_r("/".join(elm_file_base) + '/' + elm_file_reg.replace("*", str(dt)))
+#             df_main = rds_main[None]
+#         elif '.csv' in args.elm_file:
+#             df_main = pd.read_csv("/".join(elm_file_base) + '/' + elm_file_reg.replace("*", str(dt)))
+#         df_main_list.append(df_main)
+#     except Exception as e:
+#         print(e)
 
-df_main = pd.concat(df_main_list).reset_index(drop=True)
+# df_main = pd.concat(df_main_list).reset_index(drop=True)
+
+
+if '.RDS' in args.elm_file:
+    rds_main = read_r(args.elm_file)
+    df_main = rds_main[None]
+elif '.csv' in args.elm_file:
+    df_main = pd.read_csv(args.elm_file)
+
 
 print(f"File {args.elm_file} read (took {time.time()-st:.2f}s).")
-print(df_main)
 
 de = pd.Timedelta(f"{args.delta_t} minutes")
 site_code = SITE_CODES[args.site[0]]
@@ -86,6 +93,8 @@ df_main[f'ts'] = df_main[f'ts'].apply(lambda x: x.astimezone(IST))
 
 
 print(f"Datetime processed (took {time.time()-st:.2f}s).")
+print(df_main)
+
 
 # Removing preliminary missing values
 df_main = df_main.dropna(subset=[f'VR'])
@@ -145,7 +154,6 @@ df_dict['ts'] = shortest['ts'].values
 df = pd.DataFrame(df_dict)
 
 print(f"Dataframe aggregated from raw ELM data (took {time.time()-st:.2f}s).")
-print(df)
 
 # Localizing timestamps
 print("Localizing timestamps...")
@@ -153,6 +161,7 @@ st = time.time()
 df.ts = df.ts.apply(lambda x: x.tz_localize(UTC))
 df.ts = df.ts.apply(lambda x: x.astimezone(IST))
 print(f"Done localizing timestamps (took {time.time()-st:.2f}s).")
+print(df)
 
 # Getting unix timestamps and differences
 print("Getting unix stamp difference for integration...")
@@ -185,7 +194,6 @@ except:
 df_event = df_event[(df_event['ts']>=start_datetime) & (df_event['ts']<=end_datetime)].reset_index(drop=True)
 
 print(f"Fetched event data (took {time.time()-st:.2f}s).")
-print(df_event)
 
 st = time.time()
 print(f"Processing event data ...")
@@ -194,6 +202,8 @@ for time_val in df_event[f'ts'].values:
     unixStamps.append((time_val - pd.Timestamp("1970-01-01")) // pd.Timedelta('1s'))
 
 df_event['unixStamps'] = unixStamps
+
+print(df_event)
 
 ignition_list = []
 for i, row in tqdm(df_event.iterrows()):
