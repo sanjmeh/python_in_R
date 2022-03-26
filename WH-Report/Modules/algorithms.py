@@ -534,15 +534,21 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
       try:
         cph= cons_final/(dg_ign_time/3600)
       except:
-        cph = 0
+        cph = None
       idling_time = 0
     else:
       if (dg_time-dg_ign_time)>0:
         idling_time = 0
-        cph= cons_final/((dg_time-idling_time)/3600)
+        try:
+          cph = cons_final/((dg_time-idling_time)/3600)
+        except:
+          cph = None
       else:
         idling_time = (dg_ign_time - dg_time - projected_dg_hrs*3600)
-        cph= cons_final/((dg_ign_time-idling_time)/3600)
+        try:
+          cph= cons_final/((dg_ign_time-idling_time)/3600)
+        except:
+          cph = None
 
     output_df[STRUCT[25]].append(initial_vol)
     output_df[STRUCT[26]].append(final_vol)
