@@ -269,7 +269,9 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
         q = (q - pd.Timestamp("1970-01-01")) // pd.Timedelta('1s')
 
         dg_ign_time += event_6.iloc[0].unixStamps - q
-        cons_ign += st_tmp.loc[0, 'rV'] - st_tmp.loc[len(st_tmp)-1, 'rV']
+        
+        if len(st_tmp) > 0:
+          cons_ign += st_tmp.loc[0, 'rV'] - st_tmp.loc[len(st_tmp)-1, 'rV']
           
     elif len(event_5) == 0 and len(event_6)>0:
       st_tmp = temp_df_fuel[temp_df_fuel['unixStamps'] <= (event_6.iloc[0].unixStamps+60)].reset_index(drop=True)
@@ -277,7 +279,9 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
       q = (q - pd.Timestamp("1970-01-01")) // pd.Timedelta('1s')
 
       dg_ign_time += event_6.iloc[0].unixStamps - q
-      cons_ign += st_tmp.loc[0, 'rV'] - st_tmp.loc[len(st_tmp)-1, 'rV']
+
+      if len(st_tmp) > 0:
+        cons_ign += st_tmp.loc[0, 'rV'] - st_tmp.loc[len(st_tmp)-1, 'rV']
     
     try:
       initial_vol = temp_df_fuel.loc[0, 'rV']
@@ -341,7 +345,7 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
       _, e_df2 = [x for _, x in temp_df.groupby(temp_df[f'ebwatts'] > 100)]
       e_df2_list = [d for _, d in e_df2.groupby(e_df2.index - np.arange(len(e_df2)))]
     except:
-      print(f"EB issue: {d}")
+      print(f"No data points for EB Watts > 100: {d}")
       e_df2_list = []
 
     # filtering data points for acwatts < 2
@@ -349,7 +353,7 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
       _, a_df2 = [x for _, x in temp_df.groupby(temp_df[f'acwatts'] < 2)]
       a_df2_list = [d for _, d in a_df2.groupby(a_df2.index - np.arange(len(a_df2)))]
     except:
-      print(f"AC issue: {d}")
+      print(f"No data points for AC Watts < 2: {d}")
       a_df2_list = []
 
     # filtering data points for acwatts < 100
@@ -357,7 +361,7 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
       _, ac_df2 = [x for _, x in temp_df.groupby(temp_df[f'acwatts'] < 100)]
       ac_df2_list = [d for _, d in ac_df2.groupby(ac_df2.index - np.arange(len(ac_df2)))]
     except:
-      print(f"AC issue: {d}")
+      print(f"No data points for AC Watts < 100: {d}")
       ac_df2_list = []
 
     # filtering data points for dgwatts > 100
@@ -365,7 +369,7 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
       _, d_df2 = [x for _, x in temp_df.groupby(temp_df[f'dgwatts'] > 100)]
       d_df2_list = [d for _, d in d_df2.groupby(d_df2.index - np.arange(len(d_df2)))]
     except:
-      print(f"DG issue: {d}")
+      print(f"No data points for DG Watts > 100: {d}")
       d_df2_list = []
 
     # filtering data points for ibattTOT > 20
@@ -373,7 +377,7 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
       _, c_df2 = [x for _, x in temp_df.groupby(temp_df[f'ibattTOT'] > 20)]
       c_df2_list = [d for _, d in c_df2.groupby(c_df2.index - np.arange(len(c_df2)))]
     except:
-      print(f"Charge issue: {d}")
+      print(f"No data points for ibattTOT > 20: {d}")
       c_df2_list = []
 
     # filtering data points for ibattTOT < -20
@@ -381,7 +385,7 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
       _, di_df2 = [x for _, x in temp_df.groupby(temp_df[f'ibattTOT'] < -20)]
       di_df2_list = [d for _, d in di_df2.groupby(di_df2.index - np.arange(len(di_df2)))]
     except:
-      print(f"Discharge issue: {d}")
+      print(f"No data points for ibattTOT < -20: {d}")
       di_df2_list = []
 
 # ################################################
@@ -390,7 +394,7 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
       _, ch_df2 = [x for _, x in temp_df.groupby((temp_df[f'dcv'] < 51) & (temp_df[f'acwatts'] > 3000))]
       ch_df2_list = [d for _, d in ch_df2.groupby(ch_df2.index - np.arange(len(ch_df2)))]
     except:
-      print(f"Charge issue: {d}")
+      print(f"No data points for AC Watts > 3000: {d}")
       ch_df2_list = []
 
     # filtering data points for acwatts < 4000
@@ -398,7 +402,7 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
       _, dis_df2 = [x for _, x in temp_df.groupby((temp_df[f'dcv'] < 51) & (temp_df[f'acwatts'] < 4000))]
       dis_df2_list = [d for _, d in dis_df2.groupby(dis_df2.index - np.arange(len(dis_df2)))]
     except:
-      print(f"Discharge issue: {d}")
+      print(f"No data points for AC Watts > 4000: {d}")
       dis_df2_list = []
 
 ##################################################
