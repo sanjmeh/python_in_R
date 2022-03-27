@@ -185,11 +185,10 @@ if '.RDS' in args.fuel_file:
     df_event = rds_event[None]
 elif '.csv' in args.fuel_file:
     df_event = pd.read_csv(args.event_file)
-df_event[f'ts'] = pd.to_datetime(df_event[f'ts'])
-try:
-    df_event[f'ts'] = df_event[f'ts'].apply(lambda x: x.tz_localize(IST)) 
-except:
-    df_event[f'ts'] = df_event[f'ts'].apply(lambda x: x.tz_convert(IST)) 
+
+df_event.ts = pd.to_datetime(df_event.ts, utc=True)
+
+df_event[f'ts'] = df_event[f'ts'].apply(lambda x: x.astimezone(IST)) 
 
 df_event = df_event[(df_event['ts']>=start_datetime) & (df_event['ts']<=end_datetime)].reset_index(drop=True)
 
