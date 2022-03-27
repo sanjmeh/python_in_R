@@ -402,7 +402,7 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
       _, dis_df2 = [x for _, x in temp_df.groupby((temp_df[f'dcv'] < 51) & (temp_df[f'acwatts'] < 4000))]
       dis_df2_list = [d for _, d in dis_df2.groupby(dis_df2.index - np.arange(len(dis_df2)))]
     except:
-      print(f"No data points for AC Watts > 4000: {d}")
+      print(f"No data points for AC Watts < 4000: {d}")
       dis_df2_list = []
 
 ##################################################
