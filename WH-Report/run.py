@@ -58,26 +58,26 @@ st  = time.time()
 elm_file_base = args.elm_file.split('/')[:-1]
 elm_file_reg = args.elm_file.split('/')[-1]
 
-# df_main_list = []
-# for dt in date_list:
-#     try:
-#         if '.RDS' in args.elm_file:
-#             rds_main = read_r("/".join(elm_file_base) + '/' + elm_file_reg.replace("*", str(dt)))
-#             df_main = rds_main[None]
-#         elif '.csv' in args.elm_file:
-#             df_main = pd.read_csv("/".join(elm_file_base) + '/' + elm_file_reg.replace("*", str(dt)))
-#         df_main_list.append(df_main)
-#     except Exception as e:
-#         print(e)
+df_main_list = []
+for dt in date_list:
+    try:
+        if '.RDS' in args.elm_file:
+            rds_main = read_r("/".join(elm_file_base) + '/' + elm_file_reg.replace("*", str(dt)))
+            df_main = rds_main[None]
+        elif '.csv' in args.elm_file:
+            df_main = pd.read_csv("/".join(elm_file_base) + '/' + elm_file_reg.replace("*", str(dt)))
+        df_main_list.append(df_main)
+    except Exception as e:
+        print(e)
 
-# df_main = pd.concat(df_main_list).reset_index(drop=True)
+df_main = pd.concat(df_main_list).reset_index(drop=True)
 
 
-if '.RDS' in args.elm_file:
-    rds_main = read_r(args.elm_file)
-    df_main = rds_main[None]
-elif '.csv' in args.elm_file:
-    df_main = pd.read_csv(args.elm_file)
+# if '.RDS' in args.elm_file:
+#     rds_main = read_r(args.elm_file)
+#     df_main = rds_main[None]
+# elif '.csv' in args.elm_file:
+#     df_main = pd.read_csv(args.elm_file)
 
 
 print(f"File {args.elm_file} read (took {time.time()-st:.2f}s).")
