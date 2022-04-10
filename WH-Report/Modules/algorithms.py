@@ -272,6 +272,19 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
         
         if len(st_tmp) > 0:
           cons_ign += st_tmp.loc[0, 'rV'] - st_tmp.loc[len(st_tmp)-1, 'rV']
+
+        try:
+          dg_wh_df = temp_df[(temp_df['unixStamps'] <= event_6.iloc[0].unixStamps) & (temp_df['unixStamps'] >= q)]
+
+
+          x_dg = dg_wh_df['unixStampsDiff'].values
+          y_dg = dg_wh_df[f'acwatts'].values
+
+          dgwh = np.trapz(y_dg, x_dg)
+
+          dg_wh += dgwh
+        except:
+          pass
           
     elif len(event_5) == 0 and len(event_6)>0:
       st_tmp = temp_df_fuel[temp_df_fuel['unixStamps'] <= (event_6.iloc[0].unixStamps+60)].reset_index(drop=True)
@@ -282,6 +295,19 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
 
       if len(st_tmp) > 0:
         cons_ign += st_tmp.loc[0, 'rV'] - st_tmp.loc[len(st_tmp)-1, 'rV']
+
+      try:
+        dg_wh_df = temp_df[(temp_df['unixStamps'] <= event_6.iloc[0].unixStamps) & (temp_df['unixStamps'] >= q)]
+
+
+        x_dg = dg_wh_df['unixStampsDiff'].values
+        y_dg = dg_wh_df[f'acwatts'].values
+
+        dgwh = np.trapz(y_dg, x_dg)
+
+        dg_wh += dgwh
+      except:
+        pass
     
     try:
       initial_vol = temp_df_fuel.loc[0, 'rV']
