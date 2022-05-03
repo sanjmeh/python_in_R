@@ -371,48 +371,78 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
       _, e_df2 = [x for _, x in temp_df.groupby(temp_df[f'ebwatts'] > 100)]
       e_df2_list = [d for _, d in e_df2.groupby(e_df2.index - np.arange(len(e_df2)))]
     except:
-      print(f"No data points for EB Watts > 100: {d}")
-      e_df2_list = []
+      try:
+        e_df2 = [x for _, x in temp_df.groupby(temp_df[f'ebwatts'] > 100)]
+        e_df2 = e_df2[0]
+        e_df2_list = [d for _, d in e_df2.groupby(e_df2.index - np.arange(len(e_df2)))]
+      except Exception as e:
+        print(f"No data points for EB Watts > 100: {d} {e}")
+        e_df2_list = []
 
     # filtering data points for acwatts < 2
     try:
       _, a_df2 = [x for _, x in temp_df.groupby(temp_df[f'acwatts'] < 2)]
       a_df2_list = [d for _, d in a_df2.groupby(a_df2.index - np.arange(len(a_df2)))]
     except:
-      print(f"No data points for AC Watts < 2: {d}")
-      a_df2_list = []
+      try:
+        a_df2 = [x for _, x in temp_df.groupby(temp_df[f'acwatts'] < 2)]
+        a_df2 = a_df2[0]
+        a_df2_list = [d for _, d in a_df2.groupby(a_df2.index - np.arange(len(a_df2)))]
+      except Exception as e:
+        print(f"No data points for AC Watts < 2: {d} {e}")
+        a_df2_list = []
 
     # filtering data points for acwatts < 100
     try:
       _, ac_df2 = [x for _, x in temp_df.groupby(temp_df[f'acwatts'] < 100)]
       ac_df2_list = [d for _, d in ac_df2.groupby(ac_df2.index - np.arange(len(ac_df2)))]
     except:
-      print(f"No data points for AC Watts < 100: {d}")
-      ac_df2_list = []
+      try:
+        ac_df2 = [x for _, x in temp_df.groupby(temp_df[f'acwatts'] < 100)]
+        ac_df2 = ac_df2[0]
+        ac_df2_list = [d for _, d in ac_df2.groupby(ac_df2.index - np.arange(len(ac_df2)))]
+      except Exception as e:
+        print(f"No data points for AC Watts < 100: {d} {e}")
+        ac_df2_list = []
 
     # filtering data points for dgwatts > 100
     try:
       _, d_df2 = [x for _, x in temp_df.groupby(temp_df[f'dgwatts'] > 100)]
       d_df2_list = [d for _, d in d_df2.groupby(d_df2.index - np.arange(len(d_df2)))]
     except:
-      print(f"No data points for DG Watts > 100: {d}")
-      d_df2_list = []
+      try:
+        d_df2 = [x for _, x in temp_df.groupby(temp_df[f'dgwatts'] > 100)]
+        d_df2 = d_df2[0]
+        d_df2_list = [d for _, d in d_df2.groupby(d_df2.index - np.arange(len(d_df2)))]
+      except Exception as e:
+        print(f"No data points for DG Watts > 100: {d} {e}")
+        d_df2_list = []
 
     # filtering data points for ibattTOT > 20
     try:
       _, c_df2 = [x for _, x in temp_df.groupby(temp_df[f'ibattTOT'] > 20)]
       c_df2_list = [d for _, d in c_df2.groupby(c_df2.index - np.arange(len(c_df2)))]
     except:
-      print(f"No data points for ibattTOT > 20: {d}")
-      c_df2_list = []
+      try:
+        c_df2 = [x for _, x in temp_df.groupby(temp_df[f'ibattTOT'] > 20)]
+        c_df2 = c_df2[0]
+        c_df2_list = [d for _, d in c_df2.groupby(c_df2.index - np.arange(len(c_df2)))]
+      except Exception as e:
+        print(f"No data points for ibattTOT > 20: {d} {e}")
+        c_df2_list = []
 
     # filtering data points for ibattTOT < -20
     try:
       _, di_df2 = [x for _, x in temp_df.groupby(temp_df[f'ibattTOT'] < -20)]
       di_df2_list = [d for _, d in di_df2.groupby(di_df2.index - np.arange(len(di_df2)))]
     except:
-      print(f"No data points for ibattTOT < -20: {d}")
-      di_df2_list = []
+      try:
+        di_df2 = [x for _, x in temp_df.groupby(temp_df[f'ibattTOT'] < -20)]
+        di_df2 = di_df2[0]
+        di_df2_list = [d for _, d in di_df2.groupby(di_df2.index - np.arange(len(di_df2)))]
+      except Exception as e:
+        print(f"No data points for ibattTOT < -20: {d} {e}")
+        di_df2_list = []
 
 # ################################################
     # filtering data points for acwatts > 3000
@@ -420,16 +450,26 @@ def generate_wh_report(df, df_event, df_fuel, date_vals, site_code, de=pd.Timede
       _, ch_df2 = [x for _, x in temp_df.groupby((temp_df[f'dcv'] < 51) & (temp_df[f'acwatts'] > 3000))]
       ch_df2_list = [d for _, d in ch_df2.groupby(ch_df2.index - np.arange(len(ch_df2)))]
     except:
-      print(f"No data points for AC Watts > 3000: {d}")
-      ch_df2_list = []
+      try:
+        ch_df2 = [x for _, x in temp_df.groupby((temp_df[f'dcv'] < 51) & (temp_df[f'acwatts'] > 3000))]
+        ch_df2 = ch_df2[0]
+        ch_df2_list = [d for _, d in ch_df2.groupby(ch_df2.index - np.arange(len(ch_df2)))]
+      except Exception as e:
+        print(f"No data points for AC Watts > 3000: {d} {e}")
+        ch_df2_list = []
 
     # filtering data points for acwatts < 4000
     try:
       _, dis_df2 = [x for _, x in temp_df.groupby((temp_df[f'dcv'] < 51) & (temp_df[f'acwatts'] < 4000))]
       dis_df2_list = [d for _, d in dis_df2.groupby(dis_df2.index - np.arange(len(dis_df2)))]
     except:
-      print(f"No data points for AC Watts < 4000: {d}")
-      dis_df2_list = []
+      try:
+        dis_df2 = [x for _, x in temp_df.groupby((temp_df[f'dcv'] < 51) & (temp_df[f'acwatts'] < 4000))]
+        dis_df2 = dis_df2[0]
+        dis_df2_list = [d for _, d in dis_df2.groupby(dis_df2.index - np.arange(len(dis_df2)))]
+      except Exception as e:
+        print(f"No data points for AC Watts < 4000: {d} {e}")
+        dis_df2_list = []
 
 ##################################################
 
