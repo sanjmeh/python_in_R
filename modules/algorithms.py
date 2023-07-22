@@ -8,6 +8,7 @@ from matplotlib.dates import date2num
 
 from .config import BASE_DIR, VEHICLE_DIR
 
+# test comment by AA
 
 def detect_dg_idling(df_event, df_elm, df_fuel, dl):
     output_df = {

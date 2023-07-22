@@ -12,6 +12,8 @@ VEHICLE_DIR = os.path.join(BASE_DIR, 'VehicleReports/')
 
 VEHICLE_LIST = pd.read_csv(os.path.join(DIR, 'Mindshift-GH/vehicle_list.csv'), header=None).values
 
+#test comment by AA
+
 # print(type(VEHICLE_LIST))
 
 MONTHS = {
