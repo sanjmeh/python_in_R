@@ -1,0 +1,11 @@
+final_df = pd.DataFrame()
+non_termid =[]
+for i in tqdm(term_id_list):
+    
+    try:
+        result_df,used_df = main(df,allmods,i,110)
+#     main(df,allmods,i)
+        final_df = final_df.append(result_df)
+    except:
+#         result_df,non_list = main(df,allmods,i)
+        non_termid.append(i)
