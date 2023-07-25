@@ -1,116 +1,90 @@
-from msilib.schema import Error
-from operator import index
-import pandas as pd
-
+import math
+import pandas as pd 
+import numpy as np
+import matplotlib.pyplot as plt
+from datetime import datetime, timedelta
+from haversine import haversine, Unit
+from tqdm import tqdm
+import pytz
+import pyreadr
+from p_tqdm import p_map
+import multiprocessing
+import time
+import os
+tqdm.pandas()
 from argparse import ArgumentParser
-from datetime import date
+import argparse
+from modules.algorithm import distance_algo,hour_algo,fuel_algo
+from modules.data import data_prep_distance,data_prep_hour,data_prep_fuel
+from modules.config import termid_class_map   #,allmods_file_input,cst_file_input,output_path  #,termids #,nontermid_path     #distance_output,hour_output,fuel_output
 
-from tqdm.std import tqdm
-from modules.config import MONTHS, TOPICS, VEHICLE_DIR, VEHICLE_LIST, SITE_CODES
 
-from modules.data import filter_by_topic, get_df_from_rds, get_data_range, filter_by_topic_param, localize_df, todatetime_df
-from modules.config import MONTHS, BASE_DIR
-from modules.algorithms import check_time_diff, detect_dg_idling, detect_fuel_drain, detect_fuel_drain_ind, generate_fuel_report
 
-def main():
-    parser = ArgumentParser()
+if __name__ == '__main__':
 
-    parser.add_argument("--idling", help="To run idling algorithm", action="store_true")
-    parser.add_argument("--drain", help="To run drain algorithm", action="store_true")
-    parser.add_argument("--drain-ind", help="To run drain independent algorithm", action="store_true")
-    parser.add_argument("--fuel-rep", help="To run drain independent algorithm", action="store_true")
-    parser.add_argument("--time-dif", help="To run drain independent algorithm", action="store_true")
-
-    parser.add_argument("-s", "--sites", nargs='+', help="The name of sites: {bagru1, bagru2, dand, jobner, sawarda}", default=VEHICLE_LIST)
-    # parser.add_argument("-t", "--topics", nargs='+', help="The topic strings", required=True)
-    parser.add_argument("--start", type=str, help="The starting date for data")
-    parser.add_argument("--end", type=str, help="The ending date for data")
-
-    parser.add_argument("--delta_t", type=int, help="Threshold in minutes for idling detection", default=10)
-
-    parser.add_argument("--ist", type=int, help="Threshold in minutes for idling detection", default=10)
-    parser.add_argument("--ie", type=int, help="Threshold in minutes for idling detection", default=10)
+    parser.add_argument('-IA','--input_allmods', type=str, help='Path to the allmods data file.')
+    parser.add_argument('-IC','--input_cst', type=str, help='Path to the cst data file.')
+    parser.add_argument('-t','--list', nargs=argparse.REMAINDER, type=int, default=[], help='Input list separated by spaces.')
+    parser.add_argument('-O','--output', type=str, help='Path to the output data files.')  
+    
 
     args = parser.parse_args()
 
-    base_dir = BASE_DIR
-    # fuel_path = base_dir + f'fuellvl/{args.sites[0]}_fdt.RDS'
-    # event_path = base_dir + f'dgevents/{args.sites[0]}_eventdt.RDS'
-    fuel_path = base_dir + f'fuellvl/{args.sites[0]}_fuel_download_2.csv'
-    event_path = base_dir + f'dgevents/event_data_Jan.csv'
-    m_int = int(args.start.split('-')[1])
-    elm_path = base_dir + f'elm/{args.sites[0]}/{MONTHS[m_int]}_data.RDS'
+    df = pyreadr.read_r(args.input_cst)[None]
+    mods_df = pyreadr.read_r(args.input_allmods)[None]
 
-    print(f"Building Dataframes from {event_path, fuel_path} ...")
-
-    dl = pd.Timedelta(f"{args.delta_t} minutes")
-
-    if args.drain_ind:
-        fuel_df = pd.read_csv(VEHICLE_DIR+'vehicle_data.csv')
-        fuel_df = localize_df(fuel_df)
-    elif args.time_dif:
-        fuel_df = get_data_range(localize_df(pd.read_csv(fuel_path)), args.start, args.end)
-        print(f"Fuel df fetched.")
-        print(f"Sample: {fuel_df}")
-        # event_df = filter_by_topic(get_data_range(localize_df(pd.read_csv(event_path)), args.start, args.end), topic=f'{args.sites[0]}_eventdt.RDS', topic_col='site')
-        event_df = filter_by_topic(get_data_range(localize_df(pd.read_csv(event_path)), args.start, args.end), topic=f'{args.sites[0]}'.title(), topic_col='site')
-        print(f"Event df fetched.")
-        print(f"Sample: {event_df}")
-        cph_mast_df = filter_by_topic(todatetime_df(pd.read_csv(base_dir  + 'cphmast.csv'), cols=['Ign_START', 'Ign_STOP']), topic=f'{SITE_CODES[args.sites[0]]}', topic_col='site')
-        print(f"CPHMast df fetched.")
-        print(f"Sample: {cph_mast_df}")
-
-        df_out = check_time_diff(event_df, cph_mast_df)
-        # df_out = cph_mast_df
-        df_out.to_csv(base_dir + f'{args.sites[0]}_faulty_time_data.csv', index=False)
-        # df_out.to_csv(base_dir + f'cphmastIST.csv', index=False)
-
+    if len(args.list)!=0:
+        df = df[df['termid'].isin(args.list)]
+        mods_df = mods_df[mods_df['termid'].isin(args.list)]
+        termid_list = args.list
     else:
-        # fuel_df = get_data_range(get_df_from_rds(fuel_path), args.start, args.end)
-        fuel_df = get_data_range(localize_df(pd.read_csv(fuel_path)), args.start, args.end)
-        print(f"Fuel df fetched.")
-        print(f"Sample: {fuel_df}")
-        # event_df = filter_by_topic(get_data_range(localize_df(pd.read_csv(event_path)), args.start, args.end), topic=f'{args.sites[0]}_eventdt.RDS', topic_col='site')
-        event_df = filter_by_topic(get_data_range(localize_df(pd.read_csv(event_path)), args.start, args.end), topic=f'{args.sites[0]}', topic_col='site')
-        print(f"Event df fetched.")
-        print(f"Sample: {event_df}")
+        termid_list = df['termid'].unique().tolist()
+        pass
 
-    if args.idling:
-        print(f"Building Dataframe from {elm_path} with topics {TOPICS[args.sites[0]]} ...")
-        elm_df = filter_by_topic_param(get_data_range(get_df_from_rds(elm_path), args.start, args.end), TOPICS[args.sites[0]], 155)
-        print(f"Elm df fetched.")
+    def calculate_distance(row):
+        if row.name == 0:
+            return 0
+        prev_lat = df.at[row.name - 1, 'lt']
+        prev_lon = df.at[row.name - 1, 'lg']
+        curr_lat = row['lt']
+        curr_lon = row['lg']
+        distance = haversine((prev_lat, prev_lon), (curr_lat, curr_lon), unit=Unit.METERS)
+        return distance
 
-        print("Starting idling detection...")
-        detect_dg_idling(event_df, elm_df, fuel_df, dl)
-        print("Detection done")
+    df = df.reset_index(drop=True)
+    df['Haversine_dist'] = df[['lt','lg']].progress_apply(calculate_distance, axis=1)
+    df = df.reset_index(drop=True)   
+    df.loc[0,'Haversine_dist'] = 0
+    termid_class_map = termid_class_map
 
-    if args.drain:
-        print("Starting drain detection...")
-        detect_fuel_drain(event_df, fuel_df)
-        print("Detection done")
+    non_termid=[]
+    final_dist = pd.DataFrame(); final_hour=pd.DataFrame(); final_fuel=pd.DataFrame()
 
-    if args.drain_ind:
-        df_final_list = []
-        print("Starting drain detection...")
-        for i, vehicle in tqdm(enumerate(args.sites[args.ist: args.ie])):
-            fuel_df_temp = filter_by_topic(fuel_df, vehicle)
-            print(fuel_df_temp)
-            df_final_list.append(detect_fuel_drain_ind(fuel_df_temp, name=vehicle))
-            print(f"vehicle {i+1}: {vehicle} done processing.")
-        print("Detection done")
-
-        print("Saving...")
-        pd.concat(df_final_list).reset_index(drop=True).to_csv('slope_fuel_report.csv', index=False)
-        print("Saved.")
-
-    if args.fuel_rep:
-        df_out = generate_fuel_report(fuel_df, event_df)
-        df_out.to_csv(BASE_DIR+f'{args.sites[0]}_fuel_jan_data.csv', index=False)
+    df = df[['lt','lg','ts','termid','currentFuelVolumeTank1','currentIgn','regNumb','disthav','Haversine_dist']]
+    mods_df = mods_df[['strt','end','lev1', 'lev2', 'fuel','termid','timediff','veh']]
 
 
+    for i in tqdm(termid_list):
+        try:
+            df_1 = df[df['termid']==i]
+            mods_df_1 = mods_df[mods_df['termid']==i]
+            dist_df = distance_algo(df_1,mods_df_1,i)
+            hour_df = hour_algo(df_1,mods_df_1)
+            fuel_df = fuel_algo(df_1,mods_df_1)
+            # try:
+            # d_df,h_df,f_df = main(df,mods_df,item)
+            final_dist = final_dist.append(dist_df)
+            final_hour = final_hour.append(hour_df)
+            final_fuel = final_fuel.append(fuel_df)
+        except:
+            non_termid.append(i)
+
+    final_dist.to_csv(args.output+'\Dist_data.csv')
+    final_hour.to_csv(args.output+'\Hour_data.csv')
+    final_fuel.to_csv(args.output+'\Fuel_data.csv')
+    with open(args.output+'\\nontermid.txt', 'w') as file:
+        for i in non_termid:
+            file.write(str(i) + '\n')
+    print(f'Files saved successfully to this path: {args.output}')
 
 
-
-
-if __name__=='__main__':
-    main()

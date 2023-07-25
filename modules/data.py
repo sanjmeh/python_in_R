@@ -1,106 +1,202 @@
-from typing import Tuple
-import pandas as pd
-import pyreadr
+import pandas as pd 
+import numpy as np
+import matplotlib.pyplot as plt
+from datetime import datetime, timedelta
+from haversine import haversine, Unit
+from tqdm import tqdm
+import pytz
+import math
+import os
+# print('import successful')
 
-from datetime import datetime, timezone
-from .config import IST
 
-def get_df_from_rds(path: str, localize=True) -> pd.DataFrame:
-    '''
-    function to convert rds file to dataframe
-    '''
-    df = pyreadr.read_r(path)
-    df = df[None]
+def timestamp_(date):
+    formatted_datetime = datetime.strptime(date, "%Y-%m-%dT%H:%M:%SZ").strftime("%Y-%m-%d %H:%M:%S")
+    return formatted_datetime
+
+def Utc_to_Ist(utc_time1):
+
+    utc_time = datetime.strptime(str(utc_time1), "%Y-%m-%d %H:%M:%S")
+    ist_timezone = pytz.timezone("Asia/Kolkata")
+    ist_time = utc_time.replace(tzinfo=pytz.UTC).astimezone(ist_timezone).strftime("%Y-%m-%d %H:%M:%S")
+    return ist_time
+# print('function done')
+
+
+
+def data_prep_distance(df,mods_df):
+
+    df = df.reset_index(drop=True)
+    df['ts'] = pd.to_datetime(df['ts'])
+    df['date'] = [str(i).split(' ')[0] for i in df['ts']]
+    start_time = pd.to_datetime(df.head(1)['date'].item()).replace(hour=22, minute=0, second=0)
+    end_time = pd.to_datetime(df.tail(1)['date'].item()).replace(hour=22, minute=0, second=0) 
+    if df[df['ts'] >= end_time].empty:
+        end_time -= pd.DateOffset(days=1)
+    df=df[(df['ts'] >= start_time) & (df['ts'] <= end_time)]  
+
+    if len(mods_df)!=0:
+        mods_df['start_date'] = [str(i).split(' ')[0] for i in mods_df['strt']]
+        mods_df['end_date'] = [str(i).split(' ')[0] for i in mods_df['end']]
+        start_time_mod = pd.to_datetime(mods_df.head(1)['start_date'].item()).replace(hour=22, minute=0, second=0)
+        end_time_mod = pd.to_datetime(mods_df.tail(1)['end_date'].item()).replace(hour=22, minute=0, second=0)
+        mods_df['strt'] = pd.to_datetime(mods_df['strt'])
+        mods_df['end'] = pd.to_datetime(mods_df['end'])
+        if mods_df[mods_df['end'] >= end_time_mod].empty:
+            end_time_mod -= pd.DateOffset(days=1)
+        mods_df=mods_df[(mods_df['strt'] >= start_time_mod) & (mods_df['end'] <= end_time_mod)]
+        mods_df1 = mods_df.query("fuel>100")
+        if len(mods_df1)==0:
+            mods_df1 = mods_df.query("fuel>60")
+    else:
+        pass
+
+    df['cumsum_dist'] = df['Haversine_dist'].cumsum()
+    df['cumsum_dist_Sir'] = df['disthav'].cumsum()
+    df.rename(columns={'currentFuelVolumeTank1':'fuel'},inplace=True)
+    diff = df['fuel'].diff().fillna(0)
+    df['fuel_diff'] = np.where(diff == 0, 0, -diff)
+    df['ts'] = pd.to_datetime(df['ts'])
+    df['time_diff'] = df['ts'].diff().fillna(pd.Timedelta(minutes=0)).dt.total_seconds() / 60
+#     df['time_diff'] = df['time_diff'].fillna(0)
+    df['lph'] = (df['fuel_diff']/df['time_diff'])*60
+    df['lp100km'] = ((df['fuel_diff']/df['Haversine_dist'])*1000)*100
+    df=df.reset_index(drop=True)    
     
-    if localize:
-        df.ts = df.ts.apply(lambda x: x.tz_localize('utc'))
-        df.ts = df.ts.apply(lambda x: x.astimezone(IST))
-        return df
+    df['REfuel_unique'] = 0
+    if len(mods_df)!=0:
+        for _,row in mods_df.iterrows():
+            sample=df.loc[(df['ts']>=row['strt'])&(df['ts']<=row['end'])]
+            if len(sample)!=0:
+                df.loc[sample.index[0], 'REfuel_unique'] = row['fuel']
+    else:
+        pass
 
-    return df
+    return df, mods_df
+# print('dist function done')
 
-def localize_df(df) -> pd.DataFrame:
-    '''
-    function to convert rds file to dataframe
-    '''
-    # df = pyreadr.read_r(path)
-    # df = df[None]
+
+def data_prep_hour(df,mods_df):
     
     df['ts'] = pd.to_datetime(df['ts'])
+    df['date'] = [str(i).split(' ')[0] for i in df['ts']]
+    start_time = pd.to_datetime(df.head(1)['date'].item()).replace(hour=22, minute=0, second=0)
+    end_time = pd.to_datetime(df.tail(1)['date'].item()).replace(hour=22, minute=0, second=0)
+    if df[df['ts'] >= end_time].empty:
+        end_time -= pd.DateOffset(days=1)
+    df=df[(df['ts'] >= start_time) & (df['ts'] <= end_time)]
 
-    # print(df)
+    if len(mods_df)!=0:
+        mods_df['start_date'] = [str(i).split(' ')[0] for i in mods_df['strt']]
+        mods_df['end_date'] = [str(i).split(' ')[0] for i in mods_df['end']]
+        start_time_mod = pd.to_datetime(mods_df.head(1)['start_date'].item()).replace(hour=22, minute=0, second=0)
+        end_time_mod = pd.to_datetime(mods_df.tail(1)['end_date'].item()).replace(hour=22, minute=0, second=0)
+        mods_df['strt'] = pd.to_datetime(mods_df['strt'])
+        mods_df['end'] = pd.to_datetime(mods_df['end'])
+        if mods_df[mods_df['end'] >= end_time_mod].empty:
+            end_time_mod -= pd.DateOffset(days=1)
+        mods_df=mods_df[(mods_df['strt'] >= start_time_mod) & (mods_df['end'] <= end_time_mod)]
+        mods_df1 = mods_df.query("fuel>100")
+        if len(mods_df1)==0:
+            mods_df1 = mods_df.query("fuel>60")
+    else:
+        pass
+
+    df['cumsum_dist'] = df['Haversine_dist'].cumsum()
+    df['cumsum_dist_Sir'] = df['disthav'].cumsum()
+    df.rename(columns={'currentFuelVolumeTank1':'fuel'},inplace=True)
+    diff = df['fuel'].diff().fillna(0)
+    df['fuel_diff'] = np.where(diff == 0, 0, -diff)
+    df['ts'] = pd.to_datetime(df['ts'])
+    df['time_diff'] = df['ts'].diff().fillna(pd.Timedelta(minutes=0)).dt.total_seconds() / 60
+    df['Cum_Timediff'] = df['time_diff'].cumsum().fillna(0)
+#     df.loc[0, 'Cum_Timediff'] = df.loc[0, 'time_diff']
+#     df['time_diff'] = df['time_diff'].fillna(0)
+    df['lph'] = (df['fuel_diff']/df['time_diff'])*60
+    df['lp100km'] = ((df['fuel_diff']/df['Haversine_dist'])*1000)*100
+    df=df.reset_index(drop=True)    
     
-    # df.ts = df.ts.apply(lambda x: x.tz_localize('utc'))
-    try:
-        df.ts = df.ts.apply(lambda x: x.astimezone(IST))
-        # print(df)
-    except:
-        df.ts = df.ts.apply(lambda x: x.tz_localize(IST))
-        # print(df)
-        # df.ts = df.ts.apply(lambda x: x.astimezone(IST))
-        # print(df)
+    df['REfuel_unique'] = 0
+    if len(mods_df)!=0:
+        for _,row in mods_df.iterrows():
+            sample=df.loc[(df['ts']>=row['strt'])&(df['ts']<=row['end'])]
+            if len(sample)!=0:
+                df.loc[sample.index[0], 'REfuel_unique'] = row['fuel']
+    else:
+        pass
+
+    return df, mods_df
+# print('hour function worked')
+
+
+def data_prep_fuel(df,mods_df):
+
+    df['ts'] = pd.to_datetime(df['ts'])
+    df['date'] = [str(i).split(' ')[0] for i in df['ts']]
+    start_time = pd.to_datetime(df.head(1)['date'].item()).replace(hour=22, minute=0, second=0)
+    end_time = pd.to_datetime(df.tail(1)['date'].item()).replace(hour=22, minute=0, second=0)
+    if df[df['ts'] >= end_time].empty:
+        end_time -= pd.DateOffset(days=1)
+    df=df[(df['ts'] >= start_time) & (df['ts'] <= end_time)]
+#     print('S3')
     
-    return df
 
-def todatetime_df(df, cols) -> pd.DataFrame:
-    '''
-    function to convert rds file to dataframe
-    '''
-    # df = pyreadr.read_r(path)
-    # df = df[None]
+    if len(mods_df)==0:
+#         mods_df = allmod_df[allmod_df['termid']==term_id].query("fuel>60")
+#     else:
+        pass
+#         if len(mods_df)==0:
+#             mods_df = None
+#         else:
+#             pass
+    if len(mods_df)!=0:
+        mods_df['start_date'] = [str(i).split(' ')[0] for i in mods_df['strt']]
+        mods_df['end_date'] = [str(i).split(' ')[0] for i in mods_df['end']]
+        start_time_mod = pd.to_datetime(mods_df.head(1)['start_date'].item()).replace(hour=22, minute=0, second=0)
+        end_time_mod = pd.to_datetime(mods_df.tail(1)['end_date'].item()).replace(hour=22, minute=0, second=0)
+        mods_df['strt'] = pd.to_datetime(mods_df['strt'])
+        mods_df['end'] = pd.to_datetime(mods_df['end'])
+        if mods_df[mods_df['end'] >= end_time_mod].empty:
+            end_time_mod -= pd.DateOffset(days=1)
+        mods_df=mods_df[(mods_df['strt'] >= start_time_mod) & (mods_df['end'] <= end_time_mod)]
+        mods_df=mods_df.query("fuel>20")
+    else:
+        pass
 
-    # print(df)
+    df['REfuel_amt'] = 0
+    for _,row in mods_df.iterrows():
+        df.loc[(df['ts']>=row['strt'])&(df['ts']<=row['end']),'REfuel_amt'] = row['fuel']
+# 
+    diff = df['currentFuelVolumeTank1'].diff().fillna(0)
+    df['Fuel_difference'] = np.where(diff == 0, 0, -diff)
     
-    for col in cols:
-        df[col] = pd.to_datetime(df[col])
-        df[col] = df[col].apply(lambda x: x.tz_localize('utc'))
-        df[col+'_IST'] = df[col].apply(lambda x: x.astimezone(IST))
-    return df
+    sample_set = set()
+    for index,row in df.query("REfuel_amt>0").iterrows():
+        sample_set.add(index)
+        sample_set.add(index+1)
+    indexes = list(sample_set)
+    df.loc[indexes,'Fuel_difference'] = 0
 
-def get_data_range(df: pd.DataFrame, start_date: str, end_date:str, ts_col='ts') -> pd.DataFrame:
-    '''
-    function to get data between a particular range
-    '''
-    d1 = [int(i) for i in start_date.split('-')]
-    d2 = [int(i) for i in end_date.split('-')]
+    s=0;t=0
+    for index,row in df.iterrows():
+        s+=row['Fuel_difference']
+        if s >110:
+            s = row['Fuel_difference']
+            t += 1
+        df.loc[index,'Cum_Fuelcons'] = s
+        df.loc[index,'Bucket'] = t
+    df['cumsum_dist'] = df['Haversine_dist'].cumsum().fillna(0)
+    df['ts'] = pd.to_datetime(df['ts'])
+    df['time_diff'] = df['ts'].diff().dt.total_seconds() / 60
+    df['time_diff'] = df['time_diff'].fillna(0)
+    df['lph'] = (df['Fuel_difference']/df['time_diff'])*60
+    df['lp100km'] = ((df['Fuel_difference']/df['Haversine_dist'])*1000)*100
+    df=df.reset_index(drop=True) 
 
-    d1 = datetime(d1[0], d1[1], d1[2], 0, 0, 0, 0, IST)
-    d2 = datetime(d2[0], d2[1], d2[2], 23, 59, 59, 0, IST)
-
-    df_range = df[(df[ts_col]>=d1) & (df[ts_col]<=d2)]
-
-    try:
-        return df_range.reset_index(drop=True)
-    except:
-        return df_range
+    return df,mods_df
+# print('fuel function worked')
 
 
-def filter_by_topic_param(df, topic:list, param:int, topic_col='topic', param_col='ST') -> pd.DataFrame:
-    '''
-    function to get data for a particular topic (site + meter) and register
-    '''
-    try:
-        df_filtered = df[(df[topic_col].isin(topic)) & (df[param_col]==param)].drop(['index', 'TS'], axis=1)
-    except Exception as e:
-        df_filtered = df[(df[topic_col].isin(topic)) & (df[param_col]==param)]
-        print(f"\nError filtering: {e}, fetching df...")
 
-    try:
-        return df_filtered.reset_index(drop=True)
-    except:
-        return df_filtered
 
-def filter_by_topic(df, topic:str, topic_col='veh') -> pd.DataFrame:
-    '''
-    function to get data for a particular topic (site + meter) and register
-    '''
-    # try:
-    #     df_filtered = df[df[topic_col].isin(topic)].drop(['index', 'TS'], axis=1)
-    # except Exception as e:
-    df_filtered = df[df[topic_col]==topic]
-        # print(f"\nError filtering: {e}, fetching df...")
 
-    try:
-        return df_filtered.reset_index(drop=True)
-    except:
-        return df_filtered
