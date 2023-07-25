@@ -16,23 +16,23 @@ from argparse import ArgumentParser
 import argparse
 from modules.algorithms import distance_algo,hour_algo,fuel_algo
 from modules.data import data_prep_distance,data_prep_hour,data_prep_fuel
-from modules.config import termid_class_map   #,allmods_file_input,cst_file_input,output_path  #,termids #,nontermid_path     #distance_output,hour_output,fuel_output
+from modules.config import termid_class_map,allmods_file_input,cst_file_input,output_path  #,termids #,nontermid_path     #distance_output,hour_output,fuel_output
 
 
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Process data from a file.')
-    parser.add_argument('-IA','--input_allmods', type=str, help='Path to the allmods data file.')
-    parser.add_argument('-IC','--input_cst', type=str, help='Path to the cst data file.')
+    # parser.add_argument('-IA','--input_allmods', type=str, help='Path to the allmods data file.')
+    # parser.add_argument('-IC','--input_cst', type=str, help='Path to the cst data file.')
     parser.add_argument('-t','--list', nargs=argparse.REMAINDER, type=int, default=[], help='Input list separated by spaces.')
-    parser.add_argument('-O','--output', type=str, help='Path to the output data files.')  
+    # parser.add_argument('-O','--output', type=str, help='Path to the output data files.')
     
 
     args = parser.parse_args()
 
-    df = pyreadr.read_r(args.input_cst)[None]
-    mods_df = pyreadr.read_r(args.input_allmods)[None]
+    df = pyreadr.read_r(cst_file_input)[None]
+    mods_df = pyreadr.read_r(allmods_file_input)[None]
 
     if len(args.list)!=0:
         df = df[df['termid'].isin(args.list)]
@@ -80,10 +80,10 @@ if __name__ == '__main__':
         except:
             non_termid.append(i)
 
-    final_dist.to_csv(args.output+'\Dist_data.csv')
-    final_hour.to_csv(args.output+'\Hour_data.csv')
-    final_fuel.to_csv(args.output+'\Fuel_data.csv')
-    with open(args.output+'\\nontermid.txt', 'w') as file:
+    final_dist.to_csv(output_path+'\Dist_data.csv')
+    final_hour.to_csv(output_path+'\Hour_data.csv')
+    final_fuel.to_csv(output_path+'\Fuel_data.csv')
+    with open(output_path+'\\nontermid.txt', 'w') as file:
         for i in non_termid:
             file.write(str(i) + '\n')
     print(f'Files saved successfully to this path: {args.output}')
