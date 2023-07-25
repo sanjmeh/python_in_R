@@ -1,25 +1,19 @@
 # Mindshift
 
-# test change AA
 
 ```
 pip install -r requirements.txt
 ```
 
-For Idling Detection
+1. If you want to generate Three algorithm files for all termids, put the command this way in your terminal, 
 
 ```
-python run.py --sites jobner --idling --start 2021-12-1 --end 2021-12-31 --delta_t 10
+>> python run.py -IA '_your input allmods file path_' -IC '_your input cst file path' -t  -O '_output folder path_'
 ```
 
-For Drain Detection
+2. If you have specific termids to run the algorithms for, put the command this way, (put space-separated termids after '-t')
 
 ```
-python run.py --sites dand --drain --start 2021-8-1 --end 2021-8-31
+>> python run.py -IA '_your input allmods file path_' -IC '_your input cst file path' -t 1204000785 1204000506 -O '_output folder path_'
 ```
 
-For Vehicle Drain Detection
-
-```
-python run.py --sites 'EXR-645' 'EXR-466' 'MGR-184(Motor Grader)' 'MGR-185(Motor Grader)' 'EXR-592' 'MGR-21' 'EXR-685' 'EXR-591' 'MGR-97'  --drain-ind --start 2021-8-1 --end 2021-8-31
-```

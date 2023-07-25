@@ -1,47 +1,12 @@
-import pytz
-import pandas as pd
 
-from pathlib import Path
-import os
+termid_class_map = {"1204000506": "high_movement", "1204000785": "high_movement", "1204000784": "high_movement", "1204000717": "low_movement", "1204000635": "low_movement", "1204000519": "low_movement", "1204000586": "low_movement", "1204000552": "low_movement", "1204000773": "high_movement", "1204000781": "high_movement", "1204000517": "low_movement", "1204000834": "low_movement", "1204000787": "fibre_tank_moving", "1204000810": "fibre_tank_moving", "1204000730": "fibre_tank_moving", "1204000788": "fibre_tank_moving", "1204000629": "fibre_tank_moving", "1204000505": "fibre_tank_moving", "1204000782": "fibre_tank_moving", "1204000502": "fibre_tank_moving", "1204000633": "fibre_tank_moving", "1204000503": "fibre_tank_moving", "1204000776": "fibre_tank_moving", "1204000504": "fibre_tank_moving", "1204000631": "fibre_tank_moving", "1204000508": "fibre_tank_moving", "1204000556": "zero_movement", "1204000551": "zero_movement", "1204000558": "zero_movement", "1204000518": "zero_movement", "1204000860": "zero_movement", "1204001023": "zero_movement", "1204000780": "zero_movement", "1204000626": "zero_movement", "1204000559": "zero_movement", "1204000264": "zero_movement", "1204000875": "zero_movement", "1204001025": "zero_movement", "1204000245": "zero_movement", "1204000311": "high_movement", "1204000266": "high_movement", "1204000310": "high_movement", "1204000312": "high_movement", "1204000304": "high_movement", "1204000314": "high_movement", "1204000871": "high_movement", "1204000308": "high_movement", "1204000324": "high_movement", "1204000306": "high_movement", "1204000317": "high_movement", "1204000305": "high_movement", "1204000318": "high_movement", "1204000315": "high_movement", "1204000302": "high_movement", "1204000316": "high_movement", "1204000307": "high_movement", "1204000326": "high_movement", "1204000258": "high_movement", "1204000309": "high_movement", "1204000331": "high_movement", "1204000325": "high_movement", "1204000313": "high_movement", "1204000260": "high_movement", "1204000488": "high_movement", "1204000262": "high_movement", "1204000254": "high_movement", "1204000261": "high_movement", "1204000483": "high_movement", "1204000257": "high_movement", "1204000496": "high_movement", "1204000485": "high_movement", "1204000482": "high_movement", "1204000481": "high_movement", "1204000265": "high_movement", "1204000332": "high_movement", "1204000334": "high_movement", "1204000323": "high_movement", "1204000322": "high_movement", "1204000329": "high_movement", "1204000333": "high_movement", "1204000327": "high_movement", "1204000330": "high_movement", "1204000328": "high_movement", "1204000321": "high_movement", "1204000319": "high_movement", "1204000320": "high_movement", "1204000852": "low_movement", "1204000268": "low_movement", "1204000492": "low_movement", "1204000489": "low_movement", "1204000515": "low_movement", "1204000513": "low_movement", "1204000510": "low_movement", "1204000555": "low_movement", "1204000472": "low_movement", "1204000479": "low_movement", "1204000255": "low_movement", "1204000480": "low_movement", "1204000256": "low_movement", "1204000263": "low_movement", "1204000253": "low_movement", "1204000267": "low_movement", "1204000812": "fibre_tank_moving", "1204000813": "fibre_tank_moving", "1204001030": "high_movement", "1204001033": "high_movement", "1204001032": "high_movement", "1204001029": "fibre_tank_moving", "1204001024": "fibre_tank_moving", "1204000732": "high_movement", "1204000718": "high_movement", "1204000783": "high_movement", "1204000731": "zero_movement", "1204000720": "zero_movement", "1204000490": "zero_movement", "1204000493": "zero_movement", "1204000494": "zero_movement", "1204000512": "zero_movement", "1204000486": "zero_movement", "1204000484": "zero_movement", "1204000511": "zero_movement", "1204000521": "zero_movement", "1204000495": "zero_movement", "1204000520": "zero_movement", "1204000509": "zero_movement", "1204000516": "zero_movement", "1204000585": "zero_movement", "1204000583": "zero_movement", "1204000630": "zero_movement", "1204000588": "zero_movement", "1204000577": "zero_movement", "1204000589": "zero_movement", "1204000578": "zero_movement", "1204000584": "zero_movement", "1204000623": "zero_movement", "1204000581": "zero_movement", "1204000624": "zero_movement", "1204000574": "zero_movement", "1204000576": "zero_movement", "1204000627": "zero_movement", "1204000507": "high_movement", "1204000815": "high_movement", "1204000838": "high_movement", "1204000839": "high_movement", "1204000816": "high_movement", "1204000833": "high_movement", "1204000727": "fibre_tank_moving", "1204000719": "fibre_tank_moving", "1204000774": "fibre_tank_moving", "1204000866": "high_movement", "1204000868": "high_movement", "1204000811": "fibre_tank_moving", "1204000855": "fibre_tank_moving", "1204000786": "fibre_tank_moving", "1204000857": "fibre_tank_moving", "1204000841": "fibre_tank_moving", "1204000869": "fibre_tank_moving", "1204000872": "fibre_tank_moving", "1204000244": "fibre_tank_moving", "1204000851": "fibre_tank_moving", "1204000858": "fibre_tank_moving", "1204000844": "fibre_tank_moving", "1204000859": "fibre_tank_moving", "1204000560": "low_movement", "1204000729": "low_movement", "1204000557": "low_movement", "1204000634": "low_movement", "1204000582": "low_movement", "1204000579": "low_movement", "1204000723": "high_movement", "1204000724": "high_movement", "1204000779": "high_movement", "1204000870": "high_movement", "1204001031": "high_movement", "1204000836": "high_movement", "1204000837": "high_movement", "1204000843": "high_movement", "1204000814": "high_movement", "1204000835": "high_movement", "1204000840": "high_movement", "1204000842": "high_movement", "1204000854": "high_movement", "1204000853": "high_movement", "1204000867": "high_movement", "1204000856": "high_movement", "1204000550": "fibre_tank_moving", "1204000725": "fibre_tank_moving", "1204000487": "fibre_tank_moving", "1204000722": "fibre_tank_moving", "1204000874": "fibre_tank_moving", "1204000778": "fibre_tank_moving"}
 
-DIR = Path(__file__).resolve().parent.parent.parent
 
-IST = pytz.timezone('Asia/Kolkata')
-BASE_DIR = os.path.join(DIR, 'data/')
-VEHICLE_DIR = os.path.join(BASE_DIR, 'VehicleReports/')
 
-VEHICLE_LIST = pd.read_csv(os.path.join(DIR, 'Mindshift-GH/vehicle_list.csv'), header=None).values
+# Required Input details from Users
 
-#test comment by AA
+# allmods_file_input = r'C:\Users\Manjima Dutta\MINDSHIFT\INPUT_DATA\allmods.RDS'      # put allmods input path  
+# cst_file_input = r'C:\Users\Manjima Dutta\MINDSHIFT\INPUT_DATA\cst_all_copy.RDS'     # put cst input path
 
-# print(type(VEHICLE_LIST))
 
-MONTHS = {
-    1: 'jan',
-    2: 'feb',
-    3: 'mar',
-    4: 'apr',
-    5: 'may',
-    6: 'jun',
-    7: 'jul',
-    8: 'aug',
-    9: 'sep',
-    10: 'oct',
-    11: 'nov',
-    12: 'dec',
-}
-
-TOPICS = {
-    'bagru1': ['bagru1/ELM8420', 'bagru1/ELM8420B', 'bagru1/ELM8420C'],
-    'bagru2': ['bagru2/ELM8420', 'bagru2/ELM8420B', 'bagru2/ELM8420C'],
-    'sawarda': ['saw001/ELM8420'],
-    'jobner': ['jobner001/ELM8420']
-}
-
-SITE_CODES =  {
-    'bagru1': 'bagru1',
-    'bagru2': 'bagru2',
-    'sawarda': 'saw001',
-    'jobner': 'jobner001',
-    'dand': 'dand',
-}
+# output_path = r'C:\Users\Manjima Dutta\MINDSHIFT\OUTPUT_DATA\SCRIPT'                 # put path for your output files. 
