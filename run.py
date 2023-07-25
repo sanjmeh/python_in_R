@@ -14,7 +14,7 @@ import os
 tqdm.pandas()
 from argparse import ArgumentParser
 import argparse
-from modules.algorithm import distance_algo,hour_algo,fuel_algo
+from modules.algorithms import distance_algo,hour_algo,fuel_algo
 from modules.data import data_prep_distance,data_prep_hour,data_prep_fuel
 from modules.config import termid_class_map   #,allmods_file_input,cst_file_input,output_path  #,termids #,nontermid_path     #distance_output,hour_output,fuel_output
 
