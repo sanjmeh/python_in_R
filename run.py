@@ -22,6 +22,7 @@ from modules.config import termid_class_map   #,allmods_file_input,cst_file_inpu
 
 if __name__ == '__main__':
 
+    parser = argparse.ArgumentParser(description='Process data from a file.')
     parser.add_argument('-IA','--input_allmods', type=str, help='Path to the allmods data file.')
     parser.add_argument('-IC','--input_cst', type=str, help='Path to the cst data file.')
     parser.add_argument('-t','--list', nargs=argparse.REMAINDER, type=int, default=[], help='Input list separated by spaces.')
