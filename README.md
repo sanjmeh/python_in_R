@@ -1,4 +1,4 @@
-# Mindshift
+# Mindshift Pilferage Three algorithms
 
 
 ```
@@ -15,5 +15,16 @@ python run.py -IA '_your input allmods file path_' -IC '_your input cst file pat
 
 ```
 python run.py -IA '_your input allmods file path_' -IC '_your input cst file path' -O '_output folder path_' -t 1204000785 1204000506
+```
+
+# Mindshift Stationary-Movement Allmods algorithm :
+
+```
+pip install -r requirements.txt
+```
+1. **Prerequisite:** you need to have CST and Ign Master files in 'data' folder like before. Then run below command in terminal.
+
+```
+python dist_allmods.py
 ```
 
