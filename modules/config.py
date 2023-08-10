@@ -5,8 +5,7 @@ termid_class_map = {"1204000506": "high_movement", "1204000785": "high_movement"
 
 # Required Input details from Users
 
-allmods_file_input = r'C:\Users\Manjima Dutta\MINDSHIFT\INPUT_DATA\allmods.RDS'      # put allmods input path  
-cst_file_input = r'C:\Users\Manjima Dutta\MINDSHIFT\INPUT_DATA\cst_all_copy.RDS'     # put cst input path
+# allmods_file_input = r'C:\Users\Manjima Dutta\MINDSHIFT\INPUT_DATA\allmods.RDS'      # put allmods input path  
+# cst_file_input = r'C:\Users\Manjima Dutta\MINDSHIFT\INPUT_DATA\cst_all_copy.RDS'     # put cst input path
 
-
-output_path = r'C:\Users\Manjima Dutta\MINDSHIFT\OUTPUT_DATA\SCRIPT'                 # put path for your output files. 
+# output_path = r'C:\Users\Manjima Dutta\MINDSHIFT\OUTPUT_DATA\SCRIPT'                 # put path for your output files. 
