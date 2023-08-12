@@ -1,12 +1,5 @@
-import pandas as pd 
+import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-from datetime import datetime, timedelta
-from haversine import haversine, Unit
-from tqdm import tqdm
-import pytz
-import math
-import os
 # print('import successful')
 
 
@@ -51,7 +44,7 @@ def common_feature(dataframe,mod_dataframe):
 
 def data_prep_distance(df,mods_df):
 
-    df,mods_df = common_feature(df,mods_df)
+    df, mods_df = common_feature(df,mods_df)
     df['cumsum_dist'] = df['Haversine_dist'].cumsum()
     df['cumsum_dist_Sir'] = df['disthav'].cumsum()
     df.rename(columns={'currentFuelVolumeTank1':'fuel'},inplace=True)
@@ -69,7 +62,7 @@ def data_prep_distance(df,mods_df):
 
 
 def data_prep_hour(df,mods_df):
-    
+
     df,mods_df = common_feature(df,mods_df)
     df['cumsum_dist'] = df['Haversine_dist'].cumsum()
     df['cumsum_dist_Sir'] = df['disthav'].cumsum()
@@ -83,7 +76,7 @@ def data_prep_hour(df,mods_df):
 #     df['time_diff'] = df['time_diff'].fillna(0)
     df['lph'] = (df['fuel_diff']/df['time_diff'])*60
     df['lp100km'] = ((df['fuel_diff']/df['Haversine_dist'])*1000)*100
-    df=df.reset_index(drop=True)    
+    df=df.reset_index(drop=True)
 
     return df, mods_df
 # print('hour function worked')
@@ -99,7 +92,7 @@ def data_prep_fuel(df,mods_df):
         end_time -= pd.DateOffset(days=1)
     df=df[(df['ts'] >= start_time) & (df['ts'] <= end_time)]
 #     print('S3')
-    
+
 
     if len(mods_df)==0:
         pass
@@ -120,10 +113,10 @@ def data_prep_fuel(df,mods_df):
     df['REfuel_amt'] = 0
     for _,row in mods_df.iterrows():
         df.loc[(df['ts']>=row['strt'])&(df['ts']<=row['end']),'REfuel_amt'] = row['fuel']
-# 
+#
     diff = df['currentFuelVolumeTank1'].diff().fillna(0)
     df['Fuel_difference'] = np.where(diff == 0, 0, -diff)
-    
+
     sample_set = set()
     for index,row in df.query("REfuel_amt>0").iterrows():
         sample_set.add(index)
@@ -145,12 +138,7 @@ def data_prep_fuel(df,mods_df):
     df['time_diff'] = df['time_diff'].fillna(0)
     df['lph'] = (df['Fuel_difference']/df['time_diff'])*60
     df['lp100km'] = ((df['Fuel_difference']/df['Haversine_dist'])*1000)*100
-    df=df.reset_index(drop=True) 
+    df=df.reset_index(drop=True)
 
     return df,mods_df
 # print('fuel function worked')
-
-
-
-
-

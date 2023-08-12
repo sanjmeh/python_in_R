@@ -42,10 +42,10 @@ streamer.setLevel(logging.DEBUG)
 streamer.addHandler(streamHandler)
 # setup the handler for logging
 handler = RotatingFileHandler(log_path, maxBytes=size_rotating_bytes, backupCount=rotating_log_backup_count) \
-    if rotating_by_size == True else \
+    if rotating_by_size is True else \
     TimedRotatingFileHandler(log_path, when=timed_rotating_unit,
                              interval=timed_rotating_interval, backupCount=rotating_log_backup_count, atTime=start_point)
-if rotating_by_size == False:
+if rotating_by_size is False:
     streamer.info('next log rotation: {}'.format(datetime.datetime.fromtimestamp(
         handler.computeRollover(int(time.time())))))
 

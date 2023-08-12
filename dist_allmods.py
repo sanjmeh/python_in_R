@@ -1,16 +1,10 @@
-import pandas as pd 
-import numpy as np
-import matplotlib.pyplot as plt
-from datetime import datetime, timedelta, time
+import pandas as pd
+from datetime import datetime, timedelta
 from haversine import haversine, Unit
 from multiprocess import cpu_count
 from p_tqdm import p_map
 from tqdm import tqdm
-from time import sleep
 import pytz
-import pyreadr
-import math
-import os
 tqdm.pandas()
 import warnings
 warnings.filterwarnings("ignore")
@@ -26,14 +20,14 @@ def Utc_to_Ist(utc_time1):
     ist_time = utc_time.replace(tzinfo=pytz.UTC).astimezone(ist_timezone).strftime("%Y-%m-%d %H:%M:%S")
     return ist_time
 
-def categorize_shift(hour):
+def categorize_shift(hour: int) -> str:
     if 6 <= hour < 14:
         return 'A'
     elif 14 <= hour < 22:
         return 'B'
     else:
         return 'C'
-    
+
 def calculate_consecutive_haversine_distances(datam):
     distances = []
     for i in range(1, len(datam)):
@@ -53,12 +47,12 @@ def continuous_position_wise_grouping(a):
             end = i
             is_zero_bucket = True
             buckets.append((start, end))
-            start = end  
+            start = end
         elif num != 0 and is_zero_bucket:
             end = i
             is_zero_bucket = False
             buckets.append((start, end))
-            start = end  
+            start = end
     if is_zero_bucket:
         end = len(a)
         buckets.append((start, end))
@@ -89,7 +83,7 @@ def get_shift_timestamp(date_str):
 
 def row_split(start_time,end_time):
     end = str(get_shift_timestamp(start_time))
-    start_list=[];end_list=[]
+    start_list=[]
     while pd.to_datetime(end)<pd.to_datetime(end_time):
         start_list.append((start_time,end))
         start_time = end
@@ -115,7 +109,7 @@ def fuel_interpolation(initial_level, end_level, increments_list,total_time):
 
 df_chunks = []
 for chunk in pd.read_csv("~/JSW-VTPL/python/data/cst_all_copy.csv", chunksize=10000):
-    df_chunks.append(chunk)       
+    df_chunks.append(chunk)
 df = pd.concat(df_chunks, ignore_index=True)
 
 df['ts'] = df['ts'].progress_apply(Utc_to_Ist)
@@ -127,7 +121,7 @@ df['hour'] = df['ts'].dt.hour
 termid_list = df['termid'].unique().tolist()
 
 def dist_allmods(i):
-    
+
     term_df = df[df['termid']==i]
     term_df=term_df.reset_index(drop=True)
     term_df['shift'] = term_df['hour'].apply(categorize_shift)
@@ -145,9 +139,9 @@ def dist_allmods(i):
     for index,j in enumerate(bucket):
     #     print(i)
         if j[0]!=0:
-            sample = term_df.iloc[j[0]-1:j[1]]       
+            sample = term_df.iloc[j[0]-1:j[1]]
         else:
-            sample = term_df.iloc[j[0]:j[1]]    
+            sample = term_df.iloc[j[0]:j[1]]
             if len(sample)==1:
                 try:
                     inc = bucket[index+1]
@@ -182,12 +176,12 @@ def dist_allmods(i):
             within_df['Interpolation_status'] = 'Both_Real'
         else:
             sample_list = row_split(str(start_time),str(end_time))
-            l=[];
+            l=[]
             fuel_inter = fuel_interpolation(start_level,end_level,sample_list,total_time)
             for k in range(len(sample_list)):
                 temp_dict={}
                 keys2=['termid','reg_numb','start_time','end_time','initial_level','end_level']
-                values2=[i,sample.head(1)['regNumb'].item(),sample_list[k][0],sample_list[k][1],fuel_inter[k][0],fuel_inter[k][1]]                  
+                values2=[i,sample.head(1)['regNumb'].item(),sample_list[k][0],sample_list[k][1],fuel_inter[k][0],fuel_inter[k][1]]
                 temp_dict.update(zip(keys2,values2))
                 l.append(temp_dict)
             within_df = pd.DataFrame(l)
@@ -202,7 +196,7 @@ def dist_allmods(i):
     list_[::2] = [add_stationary_column(df) for df in list_[::2]]
     list_[1::2] = [add_movement_column(df) for df in list_[1::2]]
     ff=pd.concat(list_)
-    ff.loc[ff['Interpolation_status'].isnull()==True,'Interpolation_status']='Both_Interpolated'
+    ff.loc[ff["Interpolation_status"].isnull() is True,'Interpolation_status']='Both_Interpolated'
     ff['start_time'] = pd.to_datetime(ff['start_time'])
     ff['end_time']=pd.to_datetime(ff['end_time'])
     ff.sort_values(by=['start_time'],inplace=True)
@@ -210,7 +204,7 @@ def dist_allmods(i):
     ff['end_hour'] = ff['end_time'].dt.hour
     ff['start_shift'] = ff['start_hour'].apply(categorize_shift)
     ff['end_shift'] = ff['end_hour'].apply(categorize_shift)
-    
+
     return ff
 
 ign = pd.read_csv("~/JSW-VTPL/python/data/dtignmast.csv")
@@ -241,6 +235,3 @@ if __name__ == '__main__':
     output_path = '~/JSW-VTPL/python/data/Integrated_dist_allmods.csv'
     integrated_df.to_csv(output_path)
     print('Data saved successfully to this below path:\n{}'.format(output_path))
-
-
-

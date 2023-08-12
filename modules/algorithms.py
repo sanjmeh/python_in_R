@@ -16,8 +16,8 @@ def internal_agg(df: pd.DataFrame, mods_df: pd.DataFrame, dist, n, termid):
     # df,mods_df = data_prep_distance(input_df,input_mods_df)
     # df = df.reset_index(drop=True)
     list_=[]
-    max_ = round_to_nearest(df['cumsum_dist_Sir'].max(),n)+dist
-    for i in range(dist,max_,dist):
+    max_ = round_to_nearest(df['cumsum_dist_Sir'].max(), n) + dist
+    for i in range(dist, max_,dist):
         temp_dict = {}
         sample = df[i - dist <= df['cumsum_dist_Sir'] <= i]
         if len(sample)!=0:
