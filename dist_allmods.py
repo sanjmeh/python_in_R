@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 from haversine import haversine, Unit
@@ -10,15 +11,15 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-def timestamp_(date):
-    formatted_datetime = datetime.strptime(date, "%Y-%m-%dT%H:%M:%SZ").strftime("%Y-%m-%d %H:%M:%S")
-    return formatted_datetime
-
-def Utc_to_Ist(utc_time1):
-    utc_time = datetime.strptime(str(utc_time1), "%Y-%m-%d %H:%M:%S")
-    ist_timezone = pytz.timezone("Asia/Kolkata")
-    ist_time = utc_time.replace(tzinfo=pytz.UTC).astimezone(ist_timezone).strftime("%Y-%m-%d %H:%M:%S")
-    return ist_time
+# def timestamp_(date):
+#     formatted_datetime = datetime.strptime(date, "%Y-%m-%dT%H:%M:%SZ").strftime("%Y-%m-%d %H:%M:%S")
+#     return formatted_datetime
+#
+# def Utc_to_Ist(utc_time1):
+#     utc_time = datetime.strptime(str(utc_time1), "%Y-%m-%d %H:%M:%S")
+#     ist_timezone = pytz.timezone("Asia/Kolkata")
+#     ist_time = utc_time.replace(tzinfo=pytz.UTC).astimezone(ist_timezone).strftime("%Y-%m-%d %H:%M:%S")
+#     return ist_time
 
 def categorize_shift(hour: int) -> str:
     if 6 <= hour < 14:
@@ -37,6 +38,34 @@ def calculate_consecutive_haversine_distances(datam):
         distances.append(distance)
     distances.insert(0,0)
     return distances
+
+def haversine_np(lon1, lat1, lon2, lat2):
+  """
+  Calculate the great circle distance between two points
+  on the earth (specified in decimal degrees)
+
+  All args must be of equal length.
+
+  """
+  lon1, lat1, lon2, lat2 = map(np.radians, [lon1, lat1, lon2, lat2])
+
+  dlon = lon2 - lon1
+  dlat = lat2 - lat1
+
+  a = np.sin(dlat / 2.0)**2 + np.cos(lat1) * \
+      np.cos(lat2) * np.sin(dlon / 2.0)**2
+
+  c = 2 * np.arcsin(np.sqrt(a))
+  m = 6367000 * c
+  return m
+
+def haversine_dist(lat1, lon1, lat2, lon2):
+  return haversine((lat1, lon1), (lat2, lon2), unit=Unit.METERS)
+
+def distance(x):
+  y = x.shift()
+  return haversine_dist(x['lt'], x['lg'], y['lt'], y['lg']).fillna(0)
+
 
 def continuous_position_wise_grouping(a):
     buckets = []
@@ -107,14 +136,15 @@ def fuel_interpolation(initial_level, end_level, increments_list,total_time):
     buckets.append((buckets[-1][1], end_level))
     return buckets
 
-df_chunks = []
-for chunk in pd.read_csv("~/JSW-VTPL/python/data/cst_all_copy.csv", chunksize=10000):
-    df_chunks.append(chunk)
-df = pd.concat(df_chunks, ignore_index=True)
-
-df['ts'] = df['ts'].progress_apply(Utc_to_Ist)
+# df_chunks = []
+# for chunk in pd.read_csv("data/cst_all_copy.csv", chunksize=10000):
+#     df_chunks.append(chunk)
+# df = pd.concat(df_chunks, ignore_index=True)
+df = pd.read_csv('data/cst_all_copy.csv', parse_dates=['ts'])
+# df['ts'] = df['ts'].progress_apply(Utc_to_Ist)
 # print('UTC timezone successfully converted to IST !')
-df['ts'] = pd.to_datetime(df['ts'])
+df['ts'] = pd.to_datetime(df['ts'], utc=True)
+df['ts'] = df['ts'].dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
 df['date'] = df['ts'].dt.date.astype(str)
 df['hour'] = df['ts'].dt.hour
 
@@ -125,7 +155,11 @@ def dist_allmods(i):
     term_df = df[df['termid']==i]
     term_df=term_df.reset_index(drop=True)
     term_df['shift'] = term_df['hour'].apply(categorize_shift)
+    # term_df['lt_shift'] = term_df['lt'].shift().fillna(0)
+    # term_df['lg_shift'] = term_df['lg'].shift().fillna(0)
     term_df['Haversine_dist'] = calculate_consecutive_haversine_distances(term_df)
+    # term_df['Haversine_dist'] = term_df[['lt', 'lg', 'lt_shift', 'lg_shift']].apply(lambda x: haversine_dist(*x), axis=1)
+    # term_df.drop(columns=['lt_shift', 'lg_shift'], inplace=True)
     term_df['Fuel_diff'] = term_df['currentFuelVolumeTank1'].diff().fillna(0)
     term_df.sort_values(by=['ts'],inplace=True)
     term_df['Time_diff'] = term_df['ts'].diff().fillna(pd.Timedelta(minutes=0)).dt.total_seconds() / 60
@@ -153,7 +187,9 @@ def dist_allmods(i):
         sample['new_time_diff'] = sample['ts'].diff().fillna(pd.Timedelta(minutes=0)).dt.total_seconds() / 60
         start_d = sample.head(1)['date'].item();start_time=sample.head(1)['ts'].item()
         end_d = sample.tail(1)['date'].item();end_time=sample.tail(1)['ts'].item()
-        sample['new_distance']= calculate_consecutive_haversine_distances(sample)
+        sample['new_distance'] = calculate_consecutive_haversine_distances(sample)
+
+        # sample['new_distance']= sample[['lt', 'lg', 'lt_shift', 'lg_shift']].apply(lambda x: haversine_dist(*x), axis=1)
         ig_time = sample[sample['currentIgn']==1]
         start_level=sample.head(1)['currentFuelVolumeTank1'].item()
         end_level=sample.tail(1)['currentFuelVolumeTank1'].item()
@@ -196,7 +232,7 @@ def dist_allmods(i):
     list_[::2] = [add_stationary_column(df) for df in list_[::2]]
     list_[1::2] = [add_movement_column(df) for df in list_[1::2]]
     ff=pd.concat(list_)
-    ff.loc[ff["Interpolation_status"].isnull() is True,'Interpolation_status']='Both_Interpolated'
+    ff.loc[ff["Interpolation_status"].isnull(),'Interpolation_status']='Both_Interpolated'
     ff['start_time'] = pd.to_datetime(ff['start_time'])
     ff['end_time']=pd.to_datetime(ff['end_time'])
     ff.sort_values(by=['start_time'],inplace=True)
@@ -207,11 +243,16 @@ def dist_allmods(i):
 
     return ff
 
-ign = pd.read_csv("~/JSW-VTPL/python/data/dtignmast.csv")
-ign[['strt','end']] = ign[['strt','end']].applymap(timestamp_)
-ign[['strt','end']] = ign[['strt','end']].applymap(Utc_to_Ist)
-ign['strt'] = pd.to_datetime(ign['strt'])
-ign['end'] = pd.to_datetime(ign['end'])
+ign = pd.read_csv("data/dtignmast.csv", parse_dates=['strt', 'end'])
+
+# Convert the individual columns to IST without the offset specification
+ign['strt'] = ign['strt'].dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+ign['end'] = ign['end'].dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+
+# ign[['strt','end']] = ign[['strt','end']].applymap(timestamp_)
+# ign[['strt','end']] = ign[['strt','end']].applymap(Utc_to_Ist)
+# ign['strt'] = pd.to_datetime(ign['strt'])
+# ign['end'] = pd.to_datetime(ign['end'])
 
 def ign_time_int(row):
     x_start = row['start_time']
@@ -225,13 +266,17 @@ def ign_time_int(row):
     return row
 
 if __name__ == '__main__':
-    num_cores = cpu_count()
-    final_df_list = p_map(dist_allmods, termid_list, num_cpus=num_cores)
-    final_df=pd.concat(final_df_list)
-    final_df_dict=final_df.to_dict('records')
-    integrated_df_list = p_map(ign_time_int, final_df_dict, num_cpus=num_cores)
-    integrated_df=pd.DataFrame(integrated_df_list)
+    # num_cores = cpu_count()
+    # final_df_list = p_map(dist_allmods, termid_list, num_cpus=num_cores)
+    # final_df=pd.concat(final_df_list)
+    # final_df_dict=final_df.to_dict('records')
+    # integrated_df_list = p_map(ign_time_int, final_df_dict, num_cpus=num_cores)
+    # integrated_df=pd.DataFrame(integrated_df_list)
 
-    output_path = '~/JSW-VTPL/python/data/Integrated_dist_allmods.csv'
+    final_df = pd.concat([dist_allmods(termid) for termid in tqdm(termid_list)])
+    final_df_dict=final_df.to_dict('records')
+    integrated_df = pd.DataFrame([ign_time_int(row) for row in tqdm(final_df_dict)])
+
+    output_path = 'data/Integrated_dist_allmods2.csv'
     integrated_df.to_csv(output_path)
     print('Data saved successfully to this below path:\n{}'.format(output_path))
