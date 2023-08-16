@@ -1,6 +1,7 @@
 import pandas as pd 
 import numpy as np
 import matplotlib.pyplot as plt
+from d_config import cst_data_path,ign_data_path,output_data_path
 from datetime import datetime, timedelta, time
 from haversine import haversine, Unit
 from multiprocess import cpu_count
@@ -14,7 +15,6 @@ import os
 tqdm.pandas()
 import warnings
 warnings.filterwarnings("ignore")
-
 
 def timestamp_(date):
     formatted_datetime = datetime.strptime(date, "%Y-%m-%dT%H:%M:%SZ").strftime("%Y-%m-%d %H:%M:%S")
@@ -114,12 +114,11 @@ def fuel_interpolation(initial_level, end_level, increments_list,total_time):
     return buckets
 
 df_chunks = []
-for chunk in pd.read_csv("~/JSW-VTPL/python/data/cst_all_copy.csv", chunksize=10000):
+for chunk in pd.read_csv(cst_data_path, chunksize=10000):
     df_chunks.append(chunk)       
 df = pd.concat(df_chunks, ignore_index=True)
 
 df['ts'] = df['ts'].progress_apply(Utc_to_Ist)
-# print('UTC timezone successfully converted to IST !')
 df['ts'] = pd.to_datetime(df['ts'])
 df['date'] = df['ts'].dt.date.astype(str)
 df['hour'] = df['ts'].dt.hour
@@ -143,7 +142,6 @@ def dist_allmods(i):
     bucket = continuous_position_wise_grouping(term_df['status'].tolist())
     list_=[]
     for index,j in enumerate(bucket):
-    #     print(i)
         if j[0]!=0:
             sample = term_df.iloc[j[0]-1:j[1]]       
         else:
@@ -186,8 +184,10 @@ def dist_allmods(i):
             fuel_inter = fuel_interpolation(start_level,end_level,sample_list,total_time)
             for k in range(len(sample_list)):
                 temp_dict={}
-                keys2=['termid','reg_numb','start_time','end_time','initial_level','end_level']
-                values2=[i,sample.head(1)['regNumb'].item(),sample_list[k][0],sample_list[k][1],fuel_inter[k][0],fuel_inter[k][1]]                  
+                keys2=['termid','reg_numb','start_time','end_time','total_obs','initial_level','end_level']
+                values2=[i,sample.head(1)['regNumb'].item(),sample_list[k][0],sample_list[k][1],
+                         len(sample[(sample['ts']>=pd.to_datetime(sample_list[k][0]))&(sample['ts']<=pd.to_datetime(sample_list[k][1]))]),
+                         fuel_inter[k][0],fuel_inter[k][1]]                  
                 temp_dict.update(zip(keys2,values2))
                 l.append(temp_dict)
             within_df = pd.DataFrame(l)
@@ -210,10 +210,11 @@ def dist_allmods(i):
     ff['end_hour'] = ff['end_time'].dt.hour
     ff['start_shift'] = ff['start_hour'].apply(categorize_shift)
     ff['end_shift'] = ff['end_hour'].apply(categorize_shift)
+    sleep(.00001)
     
     return ff
 
-ign = pd.read_csv("~/JSW-VTPL/python/data/dtignmast.csv")
+ign = pd.read_csv(ign_data_path)
 ign[['strt','end']] = ign[['strt','end']].applymap(timestamp_)
 ign[['strt','end']] = ign[['strt','end']].applymap(Utc_to_Ist)
 ign['strt'] = pd.to_datetime(ign['strt'])
@@ -230,6 +231,18 @@ def ign_time_int(row):
     row['ign_time'] = sum(ign_['dur(mins)'])
     return row
 
+def final_data_f(datam):
+    datam[['start_time', 'end_time']] = datam[['start_time', 'end_time']].apply(pd.to_datetime)
+    # datam['start_time'] = pd.to_datetime(datam['start_time'])
+    # datam['end_time']=pd.to_datetime(datam['end_time'])
+    datam['total_cons']=datam['initial_level']-datam['end_level']
+    datam['lp100k'] = datam.apply(lambda row: (row['total_cons']/row['total_dist'])*100000 if row['total_dist'] > 0 else 'NaN', axis=1)
+    datam['total_time'] = (datam['end_time']-datam['start_time']).dt.total_seconds()/60
+    datam['lph'] = datam.apply(lambda row: (row['total_cons']/row['total_time'])*60 if row['total_time']>0 else 'NaN', axis=1)
+    datam['avg_speed'] = (datam['total_dist']/datam['total_time'])*0.06
+    datam.loc[datam['max_time_gap'].isnull()==True,'max_time_gap'] = (datam['end_time']-datam['start_time']).dt.total_seconds()/60
+    return datam
+
 if __name__ == '__main__':
     num_cores = cpu_count()
     final_df_list = p_map(dist_allmods, termid_list, num_cpus=num_cores)
@@ -237,10 +250,11 @@ if __name__ == '__main__':
     final_df_dict=final_df.to_dict('records')
     integrated_df_list = p_map(ign_time_int, final_df_dict, num_cpus=num_cores)
     integrated_df=pd.DataFrame(integrated_df_list)
+    integrated_df1 = final_data_f(integrated_df)
 
-    output_path = '~/JSW-VTPL/python/data/Integrated_dist_allmods.csv'
-    integrated_df.to_csv(output_path)
-    print('Data saved successfully to this below path:\n{}'.format(output_path))
+    # output_path = '../../INPUT_DATA/data/Integrated_dist_allmods.csv'
+    integrated_df1.to_csv(output_data_path)
+    print('Data saved successfully to this below path:\n{}'.format(output_data_path))
 
 
 
