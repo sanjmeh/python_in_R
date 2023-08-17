@@ -1,39 +1,34 @@
-import pandas as pd 
 import numpy as np
-import matplotlib.pyplot as plt
-from datetime import datetime, timedelta, time
+import pandas as pd
+from datetime import datetime, timedelta
 from haversine import haversine, Unit
 from multiprocess import cpu_count
 from p_tqdm import p_map
 from tqdm import tqdm
-from time import sleep
 import pytz
-import pyreadr
-import math
-import os
 tqdm.pandas()
 import warnings
 warnings.filterwarnings("ignore")
 
 
-def timestamp_(date):
-    formatted_datetime = datetime.strptime(date, "%Y-%m-%dT%H:%M:%SZ").strftime("%Y-%m-%d %H:%M:%S")
-    return formatted_datetime
+# def timestamp_(date):
+#     formatted_datetime = datetime.strptime(date, "%Y-%m-%dT%H:%M:%SZ").strftime("%Y-%m-%d %H:%M:%S")
+#     return formatted_datetime
+#
+# def Utc_to_Ist(utc_time1):
+#     utc_time = datetime.strptime(str(utc_time1), "%Y-%m-%d %H:%M:%S")
+#     ist_timezone = pytz.timezone("Asia/Kolkata")
+#     ist_time = utc_time.replace(tzinfo=pytz.UTC).astimezone(ist_timezone).strftime("%Y-%m-%d %H:%M:%S")
+#     return ist_time
 
-def Utc_to_Ist(utc_time1):
-    utc_time = datetime.strptime(str(utc_time1), "%Y-%m-%d %H:%M:%S")
-    ist_timezone = pytz.timezone("Asia/Kolkata")
-    ist_time = utc_time.replace(tzinfo=pytz.UTC).astimezone(ist_timezone).strftime("%Y-%m-%d %H:%M:%S")
-    return ist_time
-
-def categorize_shift(hour):
+def categorize_shift(hour: int) -> str:
     if 6 <= hour < 14:
         return 'A'
     elif 14 <= hour < 22:
         return 'B'
     else:
         return 'C'
-    
+
 def calculate_consecutive_haversine_distances(datam):
     distances = []
     for i in range(1, len(datam)):
@@ -44,6 +39,34 @@ def calculate_consecutive_haversine_distances(datam):
     distances.insert(0,0)
     return distances
 
+def haversine_np(lon1, lat1, lon2, lat2):
+  """
+  Calculate the great circle distance between two points
+  on the earth (specified in decimal degrees)
+
+  All args must be of equal length.
+
+  """
+  lon1, lat1, lon2, lat2 = map(np.radians, [lon1, lat1, lon2, lat2])
+
+  dlon = lon2 - lon1
+  dlat = lat2 - lat1
+
+  a = np.sin(dlat / 2.0)**2 + np.cos(lat1) * \
+      np.cos(lat2) * np.sin(dlon / 2.0)**2
+
+  c = 2 * np.arcsin(np.sqrt(a))
+  m = 6367000 * c
+  return m
+
+def haversine_dist(lat1, lon1, lat2, lon2):
+  return haversine((lat1, lon1), (lat2, lon2), unit=Unit.METERS)
+
+def distance(x):
+  y = x.shift()
+  return haversine_dist(x['lt'], x['lg'], y['lt'], y['lg']).fillna(0)
+
+
 def continuous_position_wise_grouping(a):
     buckets = []
     start = 0
@@ -53,12 +76,12 @@ def continuous_position_wise_grouping(a):
             end = i
             is_zero_bucket = True
             buckets.append((start, end))
-            start = end  
+            start = end
         elif num != 0 and is_zero_bucket:
             end = i
             is_zero_bucket = False
             buckets.append((start, end))
-            start = end  
+            start = end
     if is_zero_bucket:
         end = len(a)
         buckets.append((start, end))
@@ -89,7 +112,7 @@ def get_shift_timestamp(date_str):
 
 def row_split(start_time,end_time):
     end = str(get_shift_timestamp(start_time))
-    start_list=[];end_list=[]
+    start_list=[]
     while pd.to_datetime(end)<pd.to_datetime(end_time):
         start_list.append((start_time,end))
         start_time = end
@@ -113,25 +136,30 @@ def fuel_interpolation(initial_level, end_level, increments_list,total_time):
     buckets.append((buckets[-1][1], end_level))
     return buckets
 
-df_chunks = []
-for chunk in pd.read_csv("~/JSW-VTPL/python/data/cst_all_copy.csv", chunksize=10000):
-    df_chunks.append(chunk)       
-df = pd.concat(df_chunks, ignore_index=True)
-
-df['ts'] = df['ts'].progress_apply(Utc_to_Ist)
+# df_chunks = []
+# for chunk in pd.read_csv("data/cst_all_copy.csv", chunksize=10000):
+#     df_chunks.append(chunk)
+# df = pd.concat(df_chunks, ignore_index=True)
+df = pd.read_csv('data/cst_all_copy.csv', parse_dates=['ts'])
+# df['ts'] = df['ts'].progress_apply(Utc_to_Ist)
 # print('UTC timezone successfully converted to IST !')
-df['ts'] = pd.to_datetime(df['ts'])
+df['ts'] = pd.to_datetime(df['ts'], utc=True)
+df['ts'] = df['ts'].dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
 df['date'] = df['ts'].dt.date.astype(str)
 df['hour'] = df['ts'].dt.hour
 
 termid_list = df['termid'].unique().tolist()
 
 def dist_allmods(i):
-    
+
     term_df = df[df['termid']==i]
     term_df=term_df.reset_index(drop=True)
     term_df['shift'] = term_df['hour'].apply(categorize_shift)
+    # term_df['lt_shift'] = term_df['lt'].shift().fillna(0)
+    # term_df['lg_shift'] = term_df['lg'].shift().fillna(0)
     term_df['Haversine_dist'] = calculate_consecutive_haversine_distances(term_df)
+    # term_df['Haversine_dist'] = term_df[['lt', 'lg', 'lt_shift', 'lg_shift']].apply(lambda x: haversine_dist(*x), axis=1)
+    # term_df.drop(columns=['lt_shift', 'lg_shift'], inplace=True)
     term_df['Fuel_diff'] = term_df['currentFuelVolumeTank1'].diff().fillna(0)
     term_df.sort_values(by=['ts'],inplace=True)
     term_df['Time_diff'] = term_df['ts'].diff().fillna(pd.Timedelta(minutes=0)).dt.total_seconds() / 60
@@ -145,9 +173,9 @@ def dist_allmods(i):
     for index,j in enumerate(bucket):
     #     print(i)
         if j[0]!=0:
-            sample = term_df.iloc[j[0]-1:j[1]]       
+            sample = term_df.iloc[j[0]-1:j[1]]
         else:
-            sample = term_df.iloc[j[0]:j[1]]    
+            sample = term_df.iloc[j[0]:j[1]]
             if len(sample)==1:
                 try:
                     inc = bucket[index+1]
@@ -159,7 +187,9 @@ def dist_allmods(i):
         sample['new_time_diff'] = sample['ts'].diff().fillna(pd.Timedelta(minutes=0)).dt.total_seconds() / 60
         start_d = sample.head(1)['date'].item();start_time=sample.head(1)['ts'].item()
         end_d = sample.tail(1)['date'].item();end_time=sample.tail(1)['ts'].item()
-        sample['new_distance']= calculate_consecutive_haversine_distances(sample)
+        sample['new_distance'] = calculate_consecutive_haversine_distances(sample)
+
+        # sample['new_distance']= sample[['lt', 'lg', 'lt_shift', 'lg_shift']].apply(lambda x: haversine_dist(*x), axis=1)
         ig_time = sample[sample['currentIgn']==1]
         start_level=sample.head(1)['currentFuelVolumeTank1'].item()
         end_level=sample.tail(1)['currentFuelVolumeTank1'].item()
@@ -182,12 +212,12 @@ def dist_allmods(i):
             within_df['Interpolation_status'] = 'Both_Real'
         else:
             sample_list = row_split(str(start_time),str(end_time))
-            l=[];
+            l=[]
             fuel_inter = fuel_interpolation(start_level,end_level,sample_list,total_time)
             for k in range(len(sample_list)):
                 temp_dict={}
                 keys2=['termid','reg_numb','start_time','end_time','initial_level','end_level']
-                values2=[i,sample.head(1)['regNumb'].item(),sample_list[k][0],sample_list[k][1],fuel_inter[k][0],fuel_inter[k][1]]                  
+                values2=[i,sample.head(1)['regNumb'].item(),sample_list[k][0],sample_list[k][1],fuel_inter[k][0],fuel_inter[k][1]]
                 temp_dict.update(zip(keys2,values2))
                 l.append(temp_dict)
             within_df = pd.DataFrame(l)
@@ -202,7 +232,7 @@ def dist_allmods(i):
     list_[::2] = [add_stationary_column(df) for df in list_[::2]]
     list_[1::2] = [add_movement_column(df) for df in list_[1::2]]
     ff=pd.concat(list_)
-    ff.loc[ff['Interpolation_status'].isnull()==True,'Interpolation_status']='Both_Interpolated'
+    ff.loc[ff["Interpolation_status"].isnull(),'Interpolation_status']='Both_Interpolated'
     ff['start_time'] = pd.to_datetime(ff['start_time'])
     ff['end_time']=pd.to_datetime(ff['end_time'])
     ff.sort_values(by=['start_time'],inplace=True)
@@ -210,14 +240,19 @@ def dist_allmods(i):
     ff['end_hour'] = ff['end_time'].dt.hour
     ff['start_shift'] = ff['start_hour'].apply(categorize_shift)
     ff['end_shift'] = ff['end_hour'].apply(categorize_shift)
-    
+
     return ff
 
-ign = pd.read_csv("~/JSW-VTPL/python/data/dtignmast.csv")
-ign[['strt','end']] = ign[['strt','end']].applymap(timestamp_)
-ign[['strt','end']] = ign[['strt','end']].applymap(Utc_to_Ist)
-ign['strt'] = pd.to_datetime(ign['strt'])
-ign['end'] = pd.to_datetime(ign['end'])
+ign = pd.read_csv("data/dtignmast.csv", parse_dates=['strt', 'end'])
+
+# Convert the individual columns to IST without the offset specification
+ign['strt'] = ign['strt'].dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+ign['end'] = ign['end'].dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+
+# ign[['strt','end']] = ign[['strt','end']].applymap(timestamp_)
+# ign[['strt','end']] = ign[['strt','end']].applymap(Utc_to_Ist)
+# ign['strt'] = pd.to_datetime(ign['strt'])
+# ign['end'] = pd.to_datetime(ign['end'])
 
 def ign_time_int(row):
     x_start = row['start_time']
@@ -231,16 +266,17 @@ def ign_time_int(row):
     return row
 
 if __name__ == '__main__':
-    num_cores = cpu_count()
-    final_df_list = p_map(dist_allmods, termid_list, num_cpus=num_cores)
-    final_df=pd.concat(final_df_list)
-    final_df_dict=final_df.to_dict('records')
-    integrated_df_list = p_map(ign_time_int, final_df_dict, num_cpus=num_cores)
-    integrated_df=pd.DataFrame(integrated_df_list)
+    # num_cores = cpu_count()
+    # final_df_list = p_map(dist_allmods, termid_list, num_cpus=num_cores)
+    # final_df=pd.concat(final_df_list)
+    # final_df_dict=final_df.to_dict('records')
+    # integrated_df_list = p_map(ign_time_int, final_df_dict, num_cpus=num_cores)
+    # integrated_df=pd.DataFrame(integrated_df_list)
 
-    output_path = '~/JSW-VTPL/python/data/Integrated_dist_allmods.csv'
+    final_df = pd.concat([dist_allmods(termid) for termid in tqdm(termid_list)])
+    final_df_dict=final_df.to_dict('records')
+    integrated_df = pd.DataFrame([ign_time_int(row) for row in tqdm(final_df_dict)])
+
+    output_path = 'data/Integrated_dist_allmods2.csv'
     integrated_df.to_csv(output_path)
     print('Data saved successfully to this below path:\n{}'.format(output_path))
-
-
-

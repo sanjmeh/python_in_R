@@ -27,4 +27,3 @@ pip install -r requirements.txt
 ```
 python dist_allmods.py
 ```
-

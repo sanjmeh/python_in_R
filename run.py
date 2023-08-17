@@ -1,21 +1,13 @@
-from modules.data import data_prep_distance,data_prep_hour,data_prep_fuel
 from modules.config import termid_class_map   #,allmods_file_input,cst_file_input,output_path  #,termids #,nontermid_path,distance_output,hour_output,fuel_output
 from modules.algorithms import distance_algo,hour_algo,fuel_algo
-from datetime import datetime, timedelta
+from datetime import datetime
 from haversine import haversine, Unit
-import matplotlib.pyplot as plt
-from argparse import ArgumentParser
-from p_tqdm import p_map
-import multiprocessing
 from tqdm import tqdm
 import pandas as pd 
-import numpy as np
 import argparse
-import math
 import pytz
 import pyreadr
 import time
-import os
 
 import warnings
 warnings.filterwarnings("ignore")

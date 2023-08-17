@@ -1,37 +1,25 @@
 import math
-import pandas as pd 
-import numpy as np
-import matplotlib.pyplot as plt
-from datetime import datetime, timedelta
-from haversine import haversine, Unit
+import pandas as pd
 from tqdm import tqdm
-import pytz
-import pyreadr
-import os
 tqdm.pandas()
-from .data import data_prep_distance,data_prep_hour,data_prep_fuel
-from .config import termid_class_map
+from data import data_prep_distance,data_prep_hour,data_prep_fuel
+from config import termid_class_map
 
 
 def round_to_nearest(number, nearest):
-    if nearest == 10:
-        return math.ceil(number/nearest)*nearest
-    elif nearest == 100:
+    if nearest in (10, 100, 1000):
         return math.ceil(number / nearest) * nearest
-    elif nearest == 1000:
-        return math.ceil(number / nearest) * nearest
-    else:
-        return number
+    return number
 
-def internal_agg(df,mods_df,dist,n,termid): 
+def internal_agg(df: pd.DataFrame, mods_df: pd.DataFrame, dist, n, termid):
 
     # df,mods_df = data_prep_distance(input_df,input_mods_df)
     # df = df.reset_index(drop=True)
     list_=[]
-    max_ = round_to_nearest(df['cumsum_dist_Sir'].max(),n)+dist
-    for i in range(dist,max_,dist):
+    max_ = round_to_nearest(df['cumsum_dist_Sir'].max(), n) + dist
+    for i in range(dist, max_,dist):
         temp_dict = {}
-        sample = df[(df['cumsum_dist_Sir']>=(i-dist))&(df['cumsum_dist_Sir']<=i)]
+        sample = df[i - dist <= df['cumsum_dist_Sir'] <= i]
         if len(sample)!=0:
             total_time = sample['time_diff'].sum();ig_time = sample.query("currentIgn==1")['time_diff'].sum()
             keys=['termid','regNumb','Class','total_samples','start_time','end_time','Initial_level','End_level','Refuel_sum','total_dist','ig_perc']
@@ -42,10 +30,10 @@ def internal_agg(df,mods_df,dist,n,termid):
             list_.append(temp_dict)
         else:
             pass
-        
+
     return list_
 
-def distance_algo(input_df,input_mods_df,termid):
+def distance_algo(input_df: pd.DataFrame, input_mods_df: pd.DataFrame, termid) -> pd.DataFrame:
 
     df,mods_df = data_prep_distance(input_df,input_mods_df)   #df_1 , mods_df_1
     if termid_class_map[str(termid)] == 'high_movement':
@@ -60,11 +48,11 @@ def distance_algo(input_df,input_mods_df,termid):
         dist_df['Median_lp100'] = dist_df['lp_100'].median()
     else:
         dist_df = pd.DataFrame()
-    
+
 
     return dist_df    #df,mods_df,
 
-def hour_algo(input_df,input_mods_df):
+def hour_algo(input_df: pd.DataFrame, input_mods_df: pd.DataFrame):
 
     df,mods_df = data_prep_hour(input_df,input_mods_df)
     list_=[]
@@ -128,9 +116,3 @@ def fuel_algo(input_df,input_mods_df):
     fuel_df['Median_lp100'] = fuel_df['lp_100'].median()
 
     return fuel_df
-
-
-
-
-
-
