@@ -140,7 +140,7 @@ def dist_allmods(i):
     term_df=term_df.reset_index(drop=True)
     term_df['shift'] = term_df['hour'].apply(categorize_shift)
     term_df['Haversine_dist'] = calculate_consecutive_haversine_distances(term_df)
-    term_df['Fuel_diff'] = term_df['currentFuelVolumeTank1'].diff().fillna(0)
+#     term_df['Fuel_diff'] = term_df['currentFuelVolumeTank1'].diff().fillna(0)
     term_df.sort_values(by=['ts'],inplace=True)
     term_df['Time_diff'] = term_df['ts'].diff().fillna(pd.Timedelta(minutes=0)).dt.total_seconds() / 60
     term_df['Cons_Speed'] = term_df['Haversine_dist']/term_df['Time_diff']
@@ -195,10 +195,13 @@ def dist_allmods(i):
             fuel_inter = fuel_interpolation(start_level,end_level,sample_list,total_time)
             for k in range(len(sample_list)):
                 temp_dict={}
-                keys2=['termid','reg_numb','start_time','end_time','total_obs','initial_level','end_level']
+                sample2=sample[(sample['ts']>=pd.to_datetime(sample_list[k][0]))&(sample['ts']<=pd.to_datetime(sample_list[k][1]))]
+                sample2['new_time_diff'] = sample2['ts'].diff().fillna(pd.Timedelta(minutes=0)).dt.total_seconds() / 60
+                ign_cst = ign_time_cst(sample2['currentIgn'].tolist(),sample2['new_time_diff'].tolist())
+                keys2=['termid','reg_numb','start_time','end_time','total_obs','max_time_gap','initial_level','end_level','ign_time_cst']
                 values2=[i,sample.head(1)['regNumb'].item(),sample_list[k][0],sample_list[k][1],
                          len(sample[(sample['ts']>=pd.to_datetime(sample_list[k][0]))&(sample['ts']<=pd.to_datetime(sample_list[k][1]))]),
-                         fuel_inter[k][0],fuel_inter[k][1]]                  
+                         sample2['new_time_diff'].max(),fuel_inter[k][0],fuel_inter[k][1],ign_cst]                  
                 temp_dict.update(zip(keys2,values2))
                 l.append(temp_dict)
             within_df = pd.DataFrame(l)
@@ -264,5 +267,3 @@ if __name__ == '__main__':
 
     integrated_df1.to_csv(output_data_path)
     print('Data saved successfully to this below path:\n{}'.format(output_data_path))
-
-
