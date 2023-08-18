@@ -16,15 +16,6 @@ tqdm.pandas()
 import warnings
 warnings.filterwarnings("ignore")
 
-def timestamp_(date):
-    formatted_datetime = datetime.strptime(date, "%Y-%m-%dT%H:%M:%SZ").strftime("%Y-%m-%d %H:%M:%S")
-    return formatted_datetime
-
-def Utc_to_Ist(utc_time1):
-    utc_time = datetime.strptime(str(utc_time1), "%Y-%m-%d %H:%M:%S")
-    ist_timezone = pytz.timezone("Asia/Kolkata")
-    ist_time = utc_time.replace(tzinfo=pytz.UTC).astimezone(ist_timezone).strftime("%Y-%m-%d %H:%M:%S")
-    return ist_time
 
 def categorize_shift(hour):
     if 6 <= hour < 14:
@@ -113,12 +104,30 @@ def fuel_interpolation(initial_level, end_level, increments_list,total_time):
     buckets.append((buckets[-1][1], end_level))
     return buckets
 
-df_chunks = []
-for chunk in pd.read_csv(cst_data_path, chunksize=10000):
-    df_chunks.append(chunk)       
-df = pd.concat(df_chunks, ignore_index=True)
+def ign_time_cst(a,b):
+    # a = ignstatus column ;  b = Time difference column
+    buckets = [];start_index = None
+    for i, value in enumerate(a):
+        if value == 1:
+            if start_index is None:
+                start_index = i
+        elif start_index is not None:
+            buckets.append((start_index, i - 1))
+            start_index = None
+    if start_index is not None:
+        buckets.append((start_index, len(a) - 1))
+    ign_time=0
+    for j in buckets:
+        s = sum(b[(j[0]+1):(j[1]+1)])
+        try:
+            s = s+(b[j[0]]/2)+(b[j[1]+1]/2)
+        except:
+            s=s+(b[j[0]]/2)
+        ign_time=ign_time+s
+    return ign_time
 
-df['ts'] = df['ts'].progress_apply(Utc_to_Ist)
+df = pd.read_csv(cst_data_path,parse_dates=['ts'], infer_datetime_format=True)
+df['ts'] = df['ts'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
 df['ts'] = pd.to_datetime(df['ts'])
 df['date'] = df['ts'].dt.date.astype(str)
 df['hour'] = df['ts'].dt.hour
@@ -169,12 +178,14 @@ def dist_allmods(i):
         total_time = (end_time-start_time).total_seconds()/60
         if (start_shift==end_shift)&(((date=='Same')&((start_shift=='B')or(start_shift=='A')or((start_shift=='C')&(total_time<480))))or((date=='Different')&(start_shift=='C')&(total_time<480))):
             term_dict={}
+            ign_cst = ign_time_cst(sample['currentIgn'].tolist(),sample['new_time_diff'].tolist())
             keys = ['termid','reg_numb','start_time','end_time','total_obs','start_lt','start_lg','end_lt','end_lg',
-                    'max_time_gap','initial_level','end_level','total_dist','ign_perc']
+                    'max_time_gap','initial_level','end_level','total_dist','ign_perc','ign_time_cst']
             values = [[sample.head(1)['termid'].item()],[sample.head(1)['regNumb'].item()],[start_time],[end_time],[len(sample)],
                       [sample.head(1)['lt'].item()],[sample.head(1)['lg'].item()],[sample.tail(1)['lt'].item()],
                       [sample.tail(1)['lg'].item()],[sample['new_time_diff'].max()],[sample.head(1)['currentFuelVolumeTank1'].item()],
-                      [sample.tail(1)['currentFuelVolumeTank1'].item()],[sample['new_distance'].sum()],[(len(ig_time)/len(sample))*100]]
+                      [sample.tail(1)['currentFuelVolumeTank1'].item()],[sample['new_distance'].sum()],[(len(ig_time)/len(sample))*100],
+                     [ign_cst]]
             term_dict.update(zip(keys,values))
             within_df = pd.DataFrame(term_dict)
             within_df['Interpolation_status'] = 'Both_Real'
@@ -214,9 +225,9 @@ def dist_allmods(i):
     
     return ff
 
-ign = pd.read_csv(ign_data_path)
-ign[['strt','end']] = ign[['strt','end']].applymap(timestamp_)
-ign[['strt','end']] = ign[['strt','end']].applymap(Utc_to_Ist)
+ign = pd.read_csv(ign_data_path,parse_dates=['strt','end'], infer_datetime_format=True)
+ign['strt'] = ign['strt'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+ign['end'] = ign['end'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
 ign['strt'] = pd.to_datetime(ign['strt'])
 ign['end'] = pd.to_datetime(ign['end'])
 
@@ -233,14 +244,13 @@ def ign_time_int(row):
 
 def final_data_f(datam):
     datam[['start_time', 'end_time']] = datam[['start_time', 'end_time']].apply(pd.to_datetime)
-    # datam['start_time'] = pd.to_datetime(datam['start_time'])
-    # datam['end_time']=pd.to_datetime(datam['end_time'])
     datam['total_cons']=datam['initial_level']-datam['end_level']
     datam['lp100k'] = datam.apply(lambda row: (row['total_cons']/row['total_dist'])*100000 if row['total_dist'] > 0 else 'NaN', axis=1)
     datam['total_time'] = (datam['end_time']-datam['start_time']).dt.total_seconds()/60
     datam['lph'] = datam.apply(lambda row: (row['total_cons']/row['total_time'])*60 if row['total_time']>0 else 'NaN', axis=1)
     datam['avg_speed'] = (datam['total_dist']/datam['total_time'])*0.06
-    datam.loc[datam['max_time_gap'].isnull()==True,'max_time_gap'] = (datam['end_time']-datam['start_time']).dt.total_seconds()/60
+    datam.loc[(datam['Interpolation_status']!='Both_Real')&(datam['total_obs'].isin([0,1])),'max_time_gap'] = (datam['end_time']-datam['start_time']).dt.total_seconds()/60
+
     return datam
 
 if __name__ == '__main__':
@@ -252,7 +262,6 @@ if __name__ == '__main__':
     integrated_df=pd.DataFrame(integrated_df_list)
     integrated_df1 = final_data_f(integrated_df)
 
-    # output_path = '../../INPUT_DATA/data/Integrated_dist_allmods.csv'
     integrated_df1.to_csv(output_data_path)
     print('Data saved successfully to this below path:\n{}'.format(output_data_path))
 
