@@ -1,15 +1,19 @@
-import pandas as pd 
+import pandas as pd
 import numpy as np
+import sys
 import matplotlib.pyplot as plt
-from d_config import cst_data_path,ign_data_path,output_data_path
+# from d_config import cst_data_path,ign_data_path,output_data_path
 from datetime import datetime, timedelta, time
-from haversine import haversine, Unit
+from haversine import haversine_vector, Unit
 from multiprocess import cpu_count
 from p_tqdm import p_map
+from pathlib import Path
 from tqdm import tqdm
 from time import sleep
-import pytz
 import pyreadr
+import pytz
+# import rpy2.robjects as robjects
+# from rpy2.robjects import pandas2ri
 import math
 import os
 tqdm.pandas()
@@ -17,23 +21,22 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-def categorize_shift(hour):
+def categorize_shift(hour: int) -> str:
     if 6 <= hour < 14:
         return 'A'
     elif 14 <= hour < 22:
         return 'B'
-    else:
-        return 'C'
-    
-def calculate_consecutive_haversine_distances(datam):
-    distances = []
-    for i in range(1, len(datam)):
-        lat1, lon1 = datam.at[i-1, 'lt'], datam.at[i-1, 'lg']
-        lat2, lon2 = datam.at[i, 'lt'], datam.at[i, 'lg']
-        distance = haversine((lat1, lon1), (lat2, lon2), unit=Unit.METERS)
-        distances.append(distance)
-    distances.insert(0,0)
-    return distances
+    return 'C'
+
+# def calculate_consecutive_haversine_distances(datam):
+#     distances = []
+#     for i in range(1, len(datam)):
+#         lat1, lon1 = datam.at[i-1, 'lt'], datam.at[i-1, 'lg']
+#         lat2, lon2 = datam.at[i, 'lt'], datam.at[i, 'lg']
+#         distance = haversine((lat1, lon1), (lat2, lon2), unit=Unit.METERS)
+#         distances.append(distance)
+#     distances.insert(0,0)
+#     return distances
 
 def continuous_position_wise_grouping(a):
     buckets = []
@@ -44,12 +47,12 @@ def continuous_position_wise_grouping(a):
             end = i
             is_zero_bucket = True
             buckets.append((start, end))
-            start = end  
+            start = end
         elif num != 0 and is_zero_bucket:
             end = i
             is_zero_bucket = False
             buckets.append((start, end))
-            start = end  
+            start = end
     if is_zero_bucket:
         end = len(a)
         buckets.append((start, end))
@@ -126,21 +129,26 @@ def ign_time_cst(a,b):
         ign_time=ign_time+s
     return ign_time
 
-df = pd.read_csv(cst_data_path,parse_dates=['ts'], infer_datetime_format=True)
-df['ts'] = df['ts'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
-df['ts'] = pd.to_datetime(df['ts'])
-df['date'] = df['ts'].dt.date.astype(str)
-df['hour'] = df['ts'].dt.hour
+# df = pd.read_csv('data/cst_all_copy.csv', parse_dates=['ts'], infer_datetime_format=True)
 
-termid_list = df['termid'].unique().tolist()
 
 def dist_allmods(i):
-    
+
     term_df = df[df['termid']==i]
     term_df=term_df.reset_index(drop=True)
     term_df['shift'] = term_df['hour'].apply(categorize_shift)
-    term_df['Haversine_dist'] = calculate_consecutive_haversine_distances(term_df)
-#     term_df['Fuel_diff'] = term_df['currentFuelVolumeTank1'].diff().fillna(0)
+
+    if len(term_df['lt']) == 1:
+      term_df['Haversine_dist'] = 0.0
+    else:
+      # Calculate haversine distances using haversine_vector
+      coordinates = np.column_stack((term_df['lt'], term_df['lg']))
+      haversine_distances = haversine_vector(coordinates[:-1], coordinates[1:], Unit.METERS)
+      # Insert 0 as the first entry
+      haversine_distances = np.concatenate(([0.0], haversine_distances))
+
+      term_df['Haversine_dist'] = haversine_distances
+
     term_df.sort_values(by=['ts'],inplace=True)
     term_df['Time_diff'] = term_df['ts'].diff().fillna(pd.Timedelta(minutes=0)).dt.total_seconds() / 60
     term_df['Cons_Speed'] = term_df['Haversine_dist']/term_df['Time_diff']
@@ -152,9 +160,9 @@ def dist_allmods(i):
     list_=[]
     for index,j in enumerate(bucket):
         if j[0]!=0:
-            sample = term_df.iloc[j[0]-1:j[1]]       
+            sample = term_df.iloc[j[0]-1:j[1]]
         else:
-            sample = term_df.iloc[j[0]:j[1]]    
+            sample = term_df.iloc[j[0]:j[1]]
             if len(sample)==1:
                 try:
                     inc = bucket[index+1]
@@ -166,7 +174,24 @@ def dist_allmods(i):
         sample['new_time_diff'] = sample['ts'].diff().fillna(pd.Timedelta(minutes=0)).dt.total_seconds() / 60
         start_d = sample.head(1)['date'].item();start_time=sample.head(1)['ts'].item()
         end_d = sample.tail(1)['date'].item();end_time=sample.tail(1)['ts'].item()
-        sample['new_distance']= calculate_consecutive_haversine_distances(sample)
+
+        if len(sample['lt']) == 1:
+          sample['new_distance'] = 0.0
+        else:
+          # lt = sample['lt'].to_numpy()
+          # lg = sample['lg'].to_numpy()
+          # Calculate haversine distances using haversine_vector
+          coordinates = np.column_stack((sample['lt'], sample['lg']))
+          haversine_distances = haversine_vector(coordinates[:-1], coordinates[1:], Unit.METERS)
+
+          # Insert 0 as the first entry
+          haversine_distances = np.concatenate(([0.0], haversine_distances))
+          sample['new_distance'] = haversine_distances
+
+          # sample['new_distance']= calculate_consecutive_haversine_distances(sample)
+
+
+
         ig_time = sample[sample['currentIgn']==1]
         start_level=sample.head(1)['currentFuelVolumeTank1'].item()
         end_level=sample.tail(1)['currentFuelVolumeTank1'].item()
@@ -201,7 +226,7 @@ def dist_allmods(i):
                 keys2=['termid','reg_numb','start_time','end_time','total_obs','max_time_gap','initial_level','end_level','ign_time_cst']
                 values2=[i,sample.head(1)['regNumb'].item(),sample_list[k][0],sample_list[k][1],
                          len(sample[(sample['ts']>=pd.to_datetime(sample_list[k][0]))&(sample['ts']<=pd.to_datetime(sample_list[k][1]))]),
-                         sample2['new_time_diff'].max(),fuel_inter[k][0],fuel_inter[k][1],ign_cst]                  
+                         sample2['new_time_diff'].max(),fuel_inter[k][0],fuel_inter[k][1],ign_cst]
                 temp_dict.update(zip(keys2,values2))
                 l.append(temp_dict)
             within_df = pd.DataFrame(l)
@@ -225,25 +250,22 @@ def dist_allmods(i):
     ff['start_shift'] = ff['start_hour'].apply(categorize_shift)
     ff['end_shift'] = ff['end_hour'].apply(categorize_shift)
     sleep(.00001)
-    
+
     return ff
 
-ign = pd.read_csv(ign_data_path,parse_dates=['strt','end'], infer_datetime_format=True)
-ign['strt'] = ign['strt'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
-ign['end'] = ign['end'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
-ign['strt'] = pd.to_datetime(ign['strt'])
-ign['end'] = pd.to_datetime(ign['end'])
+# ign = pd.read_csv('data/dtignmast.csv', parse_dates=['strt','end'])
+
 
 def ign_time_int(row):
-    x_start = row['start_time']
-    x_end = row['end_time']
-    termid = row['termid']
-    ign_ = ign.loc[(((ign['strt']<=x_end)&(ign['strt']>=x_start)) | ((ign['end']<=x_end)&(ign['end']>=x_start)) | ((ign['strt']<=x_start)&(ign['end']>=x_end)))&(ign['termid']==termid)]
-    ign_.loc[ign_['strt']<x_start,'strt']=x_start
-    ign_.loc[ign_['end']>x_end,'end']=x_end
-    ign_['dur(mins)']=(ign_['end']-ign_['strt'])/timedelta(minutes=1)
-    row['ign_time'] = sum(ign_['dur(mins)'])
-    return row
+  x_start = row['start_time']
+  x_end = row['end_time']
+  termid = row['termid']
+  ign_ = ign.loc[(((ign['strt']<=x_end)&(ign['strt']>=x_start)) | ((ign['end']<=x_end)&(ign['end']>=x_start)) | ((ign['strt']<=x_start)&(ign['end']>=x_end)))&(ign['termid']==termid)]
+  ign_.loc[ign_['strt']<x_start,'strt']=x_start
+  ign_.loc[ign_['end']>x_end,'end']=x_end
+  ign_['dur(mins)']=(ign_['end']-ign_['strt'])/timedelta(minutes=1)
+  row['ign_time'] = sum(ign_['dur(mins)'])
+  return row
 
 def final_data_f(datam):
     datam[['start_time', 'end_time']] = datam[['start_time', 'end_time']].apply(pd.to_datetime)
@@ -257,13 +279,58 @@ def final_data_f(datam):
     return datam
 
 if __name__ == '__main__':
-    num_cores = cpu_count()
-    final_df_list = p_map(dist_allmods, termid_list, num_cpus=num_cores)
-    final_df=pd.concat(final_df_list)
-    final_df_dict=final_df.to_dict('records')
-    integrated_df_list = p_map(ign_time_int, final_df_dict, num_cpus=num_cores)
-    integrated_df=pd.DataFrame(integrated_df_list)
-    integrated_df1 = final_data_f(integrated_df)
+    # num_cores = cpu_count()
+    # final_df_list = p_map(dist_allmods, termid_list, num_cpus=num_cores)
+    # final_df=pd.concat(final_df_list)
+    # final_df_dict=final_df.to_dict('records')
+    # integrated_df_list = p_map(ign_time_int, final_df_dict, num_cpus=num_cores)
+    # integrated_df=pd.DataFrame(integrated_df_list)
+    # integrated_df1 = final_data_f(integrated_df)
 
-    integrated_df1.to_csv(output_data_path)
-    print('Data saved successfully to this below path:\n{}'.format(output_data_path))
+    if len(sys.argv) < 3:
+      print('You need to provide the path of the RDS files as input.\nCST data followed by ignition data.')
+    else:
+      infile_cst, infile_igtn = Path(sys.argv[1]), Path(sys.argv[2])
+
+      # Check validity of both args at once
+      if infile_cst.suffix == infile_igtn.suffix != '.RDS':
+        print('Only RDS files applicable as input\nExiting....')
+        sys.exit(0)
+
+      df = pyreadr.read_r(infile_cst)[None]
+      ign = pyreadr.read_r(infile_igtn)[None]
+
+      # df['ts'] = pd.to_datetime(df['ts'], utc=True)
+      df['ts'] = df['ts'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+      df['date'] = df['ts'].dt.date.astype(str)
+      df['hour'] = df['ts'].dt.hour
+      df.rename(columns={'latitude':'lt', 'longitude':'lg'}, inplace=True)
+      termid_list = df['termid'].unique().tolist()
+
+      # ign['strt'] = pd.to_datetime(ign['strt'], utc=True)
+      ign.rename(columns={'stop':'end'}, inplace=True)
+      # ign['end'] = pd.to_datetime(ign['end'], utc=True)
+      ign['strt'] = ign['strt'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+      ign['end'] = ign['end'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+      ign['termid'] = ign['termid'].astype(int)
+      final_df = pd.concat([dist_allmods(termid) for termid in tqdm(termid_list)])
+      final_df_dict=final_df.to_dict('records')
+      integrated_df = pd.DataFrame([ign_time_int(row) for row in tqdm(final_df_dict)])
+      integrated_df = final_data_f(integrated_df)
+
+      if len(sys.argv) == 3:
+        integrated_df.to_csv('Integrated_dist_allmods.csv')
+        print('Data saved successfully to the above path')
+
+      # Check whether the last arg is appropriate
+      elif len(sys.argv) == 4:
+        outfile = Path(sys.argv[3])
+        if outfile.suffix != '.csv':
+          print('Need to write output to a CSV file only\nExiting....')
+          sys.exit(0)
+        integrated_df.to_csv(outfile)
+        print(f'Data saved successfully to {outfile}')
+
+      # Check for extra args
+      else:
+        print('Supports atleast 2 and atmost 3 file arguments')
