@@ -223,10 +223,22 @@ def dist_allmods(i):
                 sample2=sample[(sample['ts']>=pd.to_datetime(sample_list[k][0]))&(sample['ts']<=pd.to_datetime(sample_list[k][1]))]
                 sample2['new_time_diff'] = sample2['ts'].diff().fillna(pd.Timedelta(minutes=0)).dt.total_seconds() / 60
                 ign_cst = ign_time_cst(sample2['currentIgn'].tolist(),sample2['new_time_diff'].tolist())
-                keys2=['termid','reg_numb','start_time','end_time','total_obs','max_time_gap','initial_level','end_level','ign_time_cst']
+                b_df = term_df[term_df['ts']<pd.to_datetime(sample_list[k][0])]
+                a_df = term_df[term_df['ts']>pd.to_datetime(sample_list[k][1])]
+                if (len(b_df)!=0) and (len(a_df)!=0):
+                    b_sl=b_df.tail(1)['currentFuelVolumeTank1'].item();b_st=b_df.tail(1)['ts'].item()
+                    a_el=a_df.head(1)['currentFuelVolumeTank1'].item();a_et=a_df.head(1)['ts'].item()
+                else:
+                    b_sl=0;b_st=0;a_el=0;a_et=0
+                keys2=['termid','reg_numb','start_time','end_time','total_obs','max_time_gap','initial_level','end_level',
+                'b_sl','b_st','a_sl','a_st','b_el','b_et','a_el','a_et','ign_time_cst']
                 values2=[i,sample.head(1)['regNumb'].item(),sample_list[k][0],sample_list[k][1],
                          len(sample[(sample['ts']>=pd.to_datetime(sample_list[k][0]))&(sample['ts']<=pd.to_datetime(sample_list[k][1]))]),
-                         sample2['new_time_diff'].max(),fuel_inter[k][0],fuel_inter[k][1],ign_cst]
+                         sample2['new_time_diff'].max(),fuel_inter[k][0],fuel_inter[k][1],
+                         b_sl,b_st,term_df[term_df['ts']>pd.to_datetime(sample_list[k][0])].head(1)['currentFuelVolumeTank1'].item(),
+                         term_df[term_df['ts']>pd.to_datetime(sample_list[k][0])].head(1)['ts'].item(),
+                         term_df[term_df['ts']<pd.to_datetime(sample_list[k][1])].tail(1)['currentFuelVolumeTank1'].item(),
+                         term_df[term_df['ts']<pd.to_datetime(sample_list[k][1])].tail(1)['ts'].item(),a_el,a_et,ign_cst]
                 temp_dict.update(zip(keys2,values2))
                 l.append(temp_dict)
             within_df = pd.DataFrame(l)
@@ -256,16 +268,18 @@ def dist_allmods(i):
 # ign = pd.read_csv('data/dtignmast.csv', parse_dates=['strt','end'])
 
 
-def ign_time_int(row):
-  x_start = row['start_time']
-  x_end = row['end_time']
-  termid = row['termid']
-  ign_ = ign.loc[(((ign['strt']<=x_end)&(ign['strt']>=x_start)) | ((ign['end']<=x_end)&(ign['end']>=x_start)) | ((ign['strt']<=x_start)&(ign['end']>=x_end)))&(ign['termid']==termid)]
-  ign_.loc[ign_['strt']<x_start,'strt']=x_start
-  ign_.loc[ign_['end']>x_end,'end']=x_end
-  ign_['dur(mins)']=(ign_['end']-ign_['strt'])/timedelta(minutes=1)
-  row['ign_time'] = sum(ign_['dur(mins)'])
-  return row
+def ign_time_int(i):
+    veh_f_df = final_df[final_df['termid']==i]
+    veh_f_df = veh_f_df.reset_index(drop=True)
+    veh_ign = ign[ign['termid']==i]
+    veh_ign = veh_ign.reset_index(drop=True)
+    for ind,row in veh_f_df.iterrows():
+        ign_ = veh_ign[((veh_ign['strt']>=pd.to_datetime(row['start_time']))&(veh_ign['strt']<=pd.to_datetime(row['end_time'])))|((veh_ign['end']>=pd.to_datetime(row['start_time']))&(veh_ign['end']<=pd.to_datetime(row['end_time'])))]
+        ign_.loc[ign_['strt']<pd.to_datetime(row['start_time']),'strt']=pd.to_datetime(row['start_time'])
+        ign_.loc[ign_['end']>pd.to_datetime(row['end_time']),'end']=pd.to_datetime(row['end_time'])
+        ign_['dur(mins)']=(ign_['end']-ign_['strt'])/timedelta(minutes=1)
+        veh_f_df.loc[ind,'ign_time_ignMaster'] = sum(ign_['dur(mins)'])
+    return veh_f_df
 
 def final_data_f(datam):
     datam[['start_time', 'end_time']] = datam[['start_time', 'end_time']].apply(pd.to_datetime)
@@ -277,6 +291,31 @@ def final_data_f(datam):
     datam.loc[(datam['Interpolation_status']!='Both_Real')&(datam['total_obs'].isin([0,1])),'max_time_gap'] = (datam['end_time']-datam['start_time']).dt.total_seconds()/60
 
     return datam
+
+def new_fuel(s_time,e_time,s_level,e_level,date):
+    total_time = (pd.to_datetime(e_time)-pd.to_datetime(s_time)).total_seconds()/60
+    step_size=(e_level-s_level)/total_time
+    bucket_size = (date - pd.to_datetime(s_time)).total_seconds()/60
+    new_level = s_level+(bucket_size*step_size)
+    return new_level
+
+def custom_function(group):
+    group_dict = group.to_dict('records')
+    for row in group_dict:
+        if (row['Interpolation_status']=='Both_Interpolated')&(row['total_obs']>1):
+            row['initial_level'] = new_fuel(pd.to_datetime(row['b_st']),pd.to_datetime(row['a_st']),row['b_sl'],row['a_sl'],pd.to_datetime(row['start_time']))
+            row['end_level'] = new_fuel(pd.to_datetime(row['b_et']),pd.to_datetime(row['a_et']),row['b_el'],row['a_el'],pd.to_datetime(row['end_time']))           
+        elif (row['Interpolation_status']=='Start_interpolated')&(row['total_obs']>1):
+            row['initial_level'] = new_fuel(pd.to_datetime(row['b_st']),pd.to_datetime(row['a_st']),row['b_sl'],row['a_sl'],pd.to_datetime(row['start_time']))
+        elif (row['Interpolation_status']=='End_interpolated')&(row['total_obs']>1):
+            row['end_level'] = new_fuel(pd.to_datetime(row['b_et']),pd.to_datetime(row['a_et']),row['b_el'],row['a_el'],pd.to_datetime(row['end_time']))
+    return pd.DataFrame(group_dict)
+
+def select_ign_time(row):
+    if ((row['ign_time_ignMaster']/row['total_time'])*100 == 100)or((row['ign_time_ignMaster']/row['total_time'])*100 == 0):
+        return row['ign_time_cst']
+    else:
+        return row['ign_time_ignMaster']
 
 if __name__ == '__main__':
     # num_cores = cpu_count()
@@ -315,8 +354,13 @@ if __name__ == '__main__':
       ign['termid'] = ign['termid'].astype(int)
       final_df = pd.concat([dist_allmods(termid) for termid in tqdm(termid_list)])
       final_df_dict=final_df.to_dict('records')
-      integrated_df = pd.DataFrame([ign_time_int(row) for row in tqdm(final_df_dict)])
+      integrated_df = pd.concat([ign_time_int(termid) for termid in tqdm(termid_list)])
       integrated_df = final_data_f(integrated_df)
+      grouped = integrated_df.groupby('termid')
+      integrated_df = grouped.progress_apply(custom_function)
+      integrated_df=integrated_df.reset_index(drop=True)
+      integrated_df['final_ign_time'] = integrated_df.apply(select_ign_time, axis=1)
+      integrated_df.drop(['start_hour','end_hour','b_sl','b_st','a_sl','a_st','b_el','b_et','a_el','a_et'],axis=1,inplace=True)
 
       if len(sys.argv) == 3:
         integrated_df.to_csv('Integrated_dist_allmods.csv')
