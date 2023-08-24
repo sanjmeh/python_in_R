@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import sys
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 # from d_config import cst_data_path,ign_data_path,output_data_path
 from datetime import datetime, timedelta, time
 from haversine import haversine_vector, Unit
