@@ -304,7 +304,7 @@ def custom_function(group):
     for row in group_dict:
         if (row['Interpolation_status']=='Both_Interpolated')&(row['total_obs']>1):
             row['initial_level'] = new_fuel(pd.to_datetime(row['b_st']),pd.to_datetime(row['a_st']),row['b_sl'],row['a_sl'],pd.to_datetime(row['start_time']))
-            row['end_level'] = new_fuel(pd.to_datetime(row['b_et']),pd.to_datetime(row['a_et']),row['b_el'],row['a_el'],pd.to_datetime(row['end_time']))           
+            row['end_level'] = new_fuel(pd.to_datetime(row['b_et']),pd.to_datetime(row['a_et']),row['b_el'],row['a_el'],pd.to_datetime(row['end_time']))
         elif (row['Interpolation_status']=='Start_interpolated')&(row['total_obs']>1):
             row['initial_level'] = new_fuel(pd.to_datetime(row['b_st']),pd.to_datetime(row['a_st']),row['b_sl'],row['a_sl'],pd.to_datetime(row['start_time']))
         elif (row['Interpolation_status']=='End_interpolated')&(row['total_obs']>1):
@@ -355,6 +355,7 @@ if __name__ == '__main__':
       final_df = pd.concat([dist_allmods(termid) for termid in tqdm(termid_list)])
       final_df_dict=final_df.to_dict('records')
       integrated_df = pd.concat([ign_time_int(termid) for termid in tqdm(termid_list)])
+      integrated_df.reset_index(drop=True, inplace=True)
       integrated_df = final_data_f(integrated_df)
       grouped = integrated_df.groupby('termid')
       integrated_df = grouped.progress_apply(custom_function)
