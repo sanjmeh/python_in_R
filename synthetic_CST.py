@@ -216,39 +216,14 @@ def binary_parameters(i):
     cst_veh.rename(columns={'currentIgn':'ign_status'},inplace=True)
     return cst_veh
 
+binary_to_id = {(1, 1, 1): 'id1',(0, 1, 0): 'id2',(1, 0, 1): 'id3',(0, 1, 1): 'id4',(1, 0, 0): 'id5',
+(0, 0, 1): 'id6',(1, 1, 0): 'id7',(0, 0, 0): 'id8'}
 def map_binary_to_id(row):
     return binary_to_id[tuple(row)]
-
 def id_attachment(df):
-    binary_to_id = {(1, 1, 1): 'id1',(0, 1, 0): 'id2',(1, 0, 1): 'id3',(0, 1, 1): 'id4',(1, 0, 0): 'id5',(0, 0, 1): 'id6',
-            (1, 1, 0): 'id7',(0, 0, 0): 'id8'}
     selected_columns = ['ign_status', 'veh_movement_status', 'fuel_movement_status']
     df['ID_status'] = df[selected_columns].apply(map_binary_to_id, axis=1)
     return df
-
-# def id_attachment(df):
-#     df_dict = df.to_dict('records')
-#     for i in df_dict:
-#         if (i['ign_status']==1)&(i['veh_movement_status']==1)&(i['fuel_movement_status']==1):
-#             i['ID_status'] = 'id1'
-#         elif (i['ign_status']==0)&(i['veh_movement_status']==1)&(i['fuel_movement_status']==0):
-#             i['ID_status'] = 'id2'
-#         elif (i['ign_status']==1)&(i['veh_movement_status']==0)&(i['fuel_movement_status']==1):
-#             i['ID_status'] = 'id3'
-#         elif (i['ign_status']==0)&(i['veh_movement_status']==1)&(i['fuel_movement_status']==1):
-#             i['ID_status'] = 'id4'
-#         elif (i['ign_status']==1)&(i['veh_movement_status']==0)&(i['fuel_movement_status']==0):
-#             i['ID_status'] = 'id5'
-#         elif (i['ign_status']==0)&(i['veh_movement_status']==0)&(i['fuel_movement_status']==1):
-#             i['ID_status'] = 'id6'
-#         elif (i['ign_status']==1)&(i['veh_movement_status']==1)&(i['fuel_movement_status']==0):
-#             i['ID_status'] = 'id7'
-#         elif (i['ign_status']==0)&(i['veh_movement_status']==0)&(i['fuel_movement_status']==0):
-#             i['ID_status'] = 'id8'
-#         else:
-#             pass
-#     df1 = pd.DataFrame(df_dict)
-#     return df1
 
 def cons_id_grouping(list_):
     buckets = []
