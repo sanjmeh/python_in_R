@@ -1,10 +1,8 @@
+import sys
 import pandas as pd 
 import numpy as np
-import sys
-import matplotlib.pyplot as plt
 from datetime import datetime, timedelta, time
-from haversine import haversine, Unit
-from haversine import haversine_vector, Unit
+from haversine import haversine,haversine_vector, Unit
 # import pyarrow.feather as feather
 from p_tqdm import p_map
 from tqdm import tqdm
@@ -33,16 +31,16 @@ def calculate_consecutive_haversine_distances(df):
     distances.insert(0,0)
     return distances
 
-def Off_On_grouping(indicator):
+def From_Togrouping(indicator,from_,to_):
     buckets = []
     start_position = None
     for i, value in enumerate(indicator):
-        if value == 'end':
+        if value == from_:
             if start_position is not None:
                 end_position = i
                 buckets.append((start_position, end_position))
             start_position = i
-        elif value == 'strt':
+        elif value == to_:
             if start_position is not None:
                 end_position = i
                 buckets.append((start_position, end_position))
@@ -87,7 +85,7 @@ def melt_conc(i):
                 cst_1.loc[ind,'Distance'] = a_df.head(1)['Distance'].item()
             else:
                 cst_1.loc[ind,'Distance'] = temp_df.tail(1)['Distance'].item()
-    groups = Off_On_grouping(cst_1['Indicator'].tolist())
+    groups = From_Togrouping(cst_1['Indicator'].tolist(),'end','strt')
     for j in groups:
         cst_1.loc[j[0]+1:j[1],'Distance'] = 0
     cst_1.sort_values(by=['ts','Indicator'],inplace=True)
@@ -187,27 +185,10 @@ def custom_function(group):
     group_result.drop(['timestamp'],axis=1,inplace=True)
     return group_result
 
-def On_Offgrouping(indicator):
-    buckets = []
-    start_position = None
-    for i, value in enumerate(indicator):
-        if value == 'strt':
-            if start_position is not None:
-                end_position = i
-                buckets.append((start_position, end_position))
-            start_position = i
-        elif value == 'end':
-            if start_position is not None:
-                end_position = i
-                buckets.append((start_position, end_position))
-                start_position = None
-    if start_position is not None:
-        buckets.append((start_position, len(indicator)))
-    return buckets
 
 def c_func(group):
     group=group.reset_index(drop=True)
-    strt_end = On_Offgrouping(group['Indicator'].tolist())
+    strt_end = From_Togrouping(group['Indicator'].tolist(),'strt','end')
     for j in strt_end:
         group.loc[j[0]:j[1]-1,'currentIgn']= 1
     group.loc[group['currentIgn'].isnull()==True,'currentIgn']=0
@@ -215,16 +196,6 @@ def c_func(group):
 
 
 ## ID Event Breaking 
-
-def calculate_consecutive_haversine_distances(df):
-    distances = []
-    for i in range(1, len(df)):
-        lat1, lon1 = df.at[i-1, 'lt'], df.at[i-1, 'lg']
-        lat2, lon2 = df.at[i, 'lt'], df.at[i, 'lg']
-        distance = haversine((lat1, lon1), (lat2, lon2), unit=Unit.METERS)
-        distances.append(distance)
-    distances.insert(0,0)
-    return distances
 
 def binary_parameters(i):
     cst_veh = new_cst_2[new_cst_2['termid']==i]
@@ -245,29 +216,39 @@ def binary_parameters(i):
     cst_veh.rename(columns={'currentIgn':'ign_status'},inplace=True)
     return cst_veh
 
+def map_binary_to_id(row):
+    return binary_to_id[tuple(row)]
+
 def id_attachment(df):
-    df_dict = df.to_dict('records')
-    for i in df_dict:
-        if (i['ign_status']==1)&(i['veh_movement_status']==1)&(i['fuel_movement_status']==1):
-            i['ID_status'] = 'id1'
-        elif (i['ign_status']==0)&(i['veh_movement_status']==1)&(i['fuel_movement_status']==0):
-            i['ID_status'] = 'id2'
-        elif (i['ign_status']==1)&(i['veh_movement_status']==0)&(i['fuel_movement_status']==1):
-            i['ID_status'] = 'id3'
-        elif (i['ign_status']==0)&(i['veh_movement_status']==1)&(i['fuel_movement_status']==1):
-            i['ID_status'] = 'id4'
-        elif (i['ign_status']==1)&(i['veh_movement_status']==0)&(i['fuel_movement_status']==0):
-            i['ID_status'] = 'id5'
-        elif (i['ign_status']==0)&(i['veh_movement_status']==0)&(i['fuel_movement_status']==1):
-            i['ID_status'] = 'id6'
-        elif (i['ign_status']==1)&(i['veh_movement_status']==1)&(i['fuel_movement_status']==0):
-            i['ID_status'] = 'id7'
-        elif (i['ign_status']==0)&(i['veh_movement_status']==0)&(i['fuel_movement_status']==0):
-            i['ID_status'] = 'id8'
-        else:
-            pass
-    df1 = pd.DataFrame(df_dict)
-    return df1
+    binary_to_id = {(1, 1, 1): 'id1',(0, 1, 0): 'id2',(1, 0, 1): 'id3',(0, 1, 1): 'id4',(1, 0, 0): 'id5',(0, 0, 1): 'id6',
+            (1, 1, 0): 'id7',(0, 0, 0): 'id8'}
+    selected_columns = ['ign_status', 'veh_movement_status', 'fuel_movement_status']
+    df['ID_status'] = df[selected_columns].apply(map_binary_to_id, axis=1)
+    return df
+
+# def id_attachment(df):
+#     df_dict = df.to_dict('records')
+#     for i in df_dict:
+#         if (i['ign_status']==1)&(i['veh_movement_status']==1)&(i['fuel_movement_status']==1):
+#             i['ID_status'] = 'id1'
+#         elif (i['ign_status']==0)&(i['veh_movement_status']==1)&(i['fuel_movement_status']==0):
+#             i['ID_status'] = 'id2'
+#         elif (i['ign_status']==1)&(i['veh_movement_status']==0)&(i['fuel_movement_status']==1):
+#             i['ID_status'] = 'id3'
+#         elif (i['ign_status']==0)&(i['veh_movement_status']==1)&(i['fuel_movement_status']==1):
+#             i['ID_status'] = 'id4'
+#         elif (i['ign_status']==1)&(i['veh_movement_status']==0)&(i['fuel_movement_status']==0):
+#             i['ID_status'] = 'id5'
+#         elif (i['ign_status']==0)&(i['veh_movement_status']==0)&(i['fuel_movement_status']==1):
+#             i['ID_status'] = 'id6'
+#         elif (i['ign_status']==1)&(i['veh_movement_status']==1)&(i['fuel_movement_status']==0):
+#             i['ID_status'] = 'id7'
+#         elif (i['ign_status']==0)&(i['veh_movement_status']==0)&(i['fuel_movement_status']==0):
+#             i['ID_status'] = 'id8'
+#         else:
+#             pass
+#     df1 = pd.DataFrame(df_dict)
+#     return df1
 
 def cons_id_grouping(list_):
     buckets = []
@@ -332,75 +313,78 @@ def ign_time_cst(a,b): # output -> final ign time for each event
     return ign_time
 
 def ID_event(j):
-    veh_df = cst_1[cst_1['termid']==j]
-    veh_df=veh_df.reset_index(drop=True)
-    groups = cons_id_grouping(veh_df['ID_status'].tolist())
-    groups=[sublist for sublist in groups if not (len(sublist) == 1 and sublist[0] == 0)]
-    list_=[]
-    for index,i in enumerate(groups):
-        if (i[0]==0)&(len(i)!=1):
-            sample = veh_df.loc[i[0]:i[-1]]
-            id_=veh_df.loc[i[-1],'ID_status']
-        elif (i[0]!=0)and(veh_df.loc[i[0],'ID_status'] in ['id1','id3','id7']):
-            sample=veh_df.loc[i[0]-1:i[-1]]
-            id_ = veh_df.loc[i[-1],'ID_status']
-        elif (i[0]!=0)and(veh_df.loc[i[0],'ID_status'] =='id5'):
-            if (veh_df.loc[i[0],'Indicator']=='strt')&(i[-1]+1<len(veh_df)):
-                inc = groups[index+1]
-                sample = veh_df.loc[i[0]-1:inc[-1]]
-                id_ = veh_df.loc[inc[-1],'ID_status']
-            else:
-                sample = veh_df.loc[i[0]-1:i[-1]]
+    try:
+        veh_df = cst_1[cst_1['termid']==j]
+        veh_df=veh_df.reset_index(drop=True)
+        groups = cons_id_grouping(veh_df['ID_status'].tolist())
+        groups=[sublist for sublist in groups if not (len(sublist) == 1 and sublist[0] == 0)]
+        list_=[]
+        for index,i in enumerate(groups):   # Buckets of consecutive IDs
+            if (i[0]==0)&(len(i)!=1):
+                sample = veh_df.loc[i[0]:i[-1]]
+                id_=veh_df.loc[i[-1],'ID_status']
+            elif (i[0]!=0)and(veh_df.loc[i[0],'ID_status'] in ['id1','id3','id7']):
+                sample=veh_df.loc[i[0]-1:i[-1]]
                 id_ = veh_df.loc[i[-1],'ID_status']
-        elif (i[0]!=0)and(veh_df.loc[i[0],'ID_status'] in ['id2','id4','id6','id8'])&(i[-1]+1<=len(veh_df)-1):
-            if veh_df.loc[i[-1]+1,'ID_status'] in ['id1','id3','id5','id7']:
-                sample=veh_df.loc[i[0]-1:i[-1]]
-            else:
-                sample=veh_df.loc[i[0]-1:i[-1]]
-            id_=veh_df.loc[i[-1],'ID_status']
-        sample = sample.reset_index(drop=True)
-        sample['ts'] = pd.to_datetime(sample['ts'])
-        start_time=sample.head(1)['ts'].item()
-        end_time=sample.tail(1)['ts'].item()
-        sample_list = row_split(str(start_time),str(end_time))
-        l=[]
-        for k in range(len(sample_list)):
-            temp_dict={}
-            sample2=sample[(sample['ts']>=pd.to_datetime(sample_list[k][0]))&(sample['ts']<=pd.to_datetime(sample_list[k][1]))]
-            sample2.reset_index(drop=True,inplace=True)
-            sample2.loc[0,'Distance']=0
-            sample2['new_time_diff'] = sample2['ts'].diff().fillna(pd.Timedelta(minutes=0)).dt.total_seconds() / 60
-            ign_cst = ign_time_cst(sample2['ign_status'].tolist(),sample2['new_time_diff'].tolist())
-            keys2=['termid','reg_numb','start_time','end_time','total_obs','max_time_gap','initial_level','end_level',
-                'ign_time_cst','total_dist','ID_status','indicator']
-            values2=[j,sample2.head(1)['regNumb'].item(),sample_list[k][0],sample_list[k][1],
-                    len(sample2),
-                    sample2['new_time_diff'].max(),sample2.head(1)['currentFuelVolumeTank1'].item(),sample2.tail(1)['currentFuelVolumeTank1'].item(),
-                    ign_cst,sample2['Distance'].sum(),id_,sample.head(1)['Indicator'].item()]             
-            temp_dict.update(zip(keys2,values2))
-            l.append(temp_dict)
-        within_df = pd.DataFrame(l)
-        within_df = within_df.reset_index(drop=True)
-        list_.append(within_df)
-    ff=pd.concat(list_)
-    ff['start_time'] = pd.to_datetime(ff['start_time'])
-    ff['end_time']=pd.to_datetime(ff['end_time'])
-    ff.drop_duplicates(subset=['end_time'],keep='first',inplace=True)
-    
-    ff.reset_index(drop=True,inplace=True)
-    veh_ign = ign[ign['termid']==j]
-    veh_ign = veh_ign.reset_index(drop=True)
-    veh_f_df_dict = ff.to_dict('records')
-#     for ind,row in veh_f_df.iterrows():
-    for row in veh_f_df_dict:
-        ign_ = veh_ign.loc[(((veh_ign['strt']<=row['end_time'])&(veh_ign['strt']>=row['start_time'])) | ((veh_ign['end']<=row['end_time'])&(veh_ign['end']>=row['start_time'])) | ((veh_ign['strt']<=row['start_time'])&(veh_ign['end']>=row['end_time'])))]
-        ign_.loc[ign_['strt']<row['start_time'],'strt']=row['start_time']
-        ign_.loc[ign_['end']>row['end_time'],'end']=row['end_time']
-        ign_['dur(mins)']=(ign_['end']-ign_['strt'])/timedelta(minutes=1)
-#         veh_f_df.loc[ind,'ign_time_igndata'] = sum(ign_['dur(mins)'])
-        row['ign_time_igndata'] = sum(ign_['dur(mins)'])
-    ff1 = pd.DataFrame(veh_f_df_dict)
-    return ff1
+            elif (i[0]!=0)and(veh_df.loc[i[0],'ID_status'] =='id5'):
+                if (veh_df.loc[i[0],'Indicator']=='strt')&(i[-1]+1<len(veh_df)):
+                    inc = groups[index+1]
+                    sample = veh_df.loc[i[0]-1:inc[-1]]
+                    id_ = veh_df.loc[inc[-1],'ID_status']
+                else:
+                    sample = veh_df.loc[i[0]-1:i[-1]]
+                    id_ = veh_df.loc[i[-1],'ID_status']
+            elif (i[0]!=0)and(veh_df.loc[i[0],'ID_status'] in ['id2','id4','id6','id8'])&(i[-1]+1<=len(veh_df)-1):
+                if veh_df.loc[i[-1]+1,'ID_status'] in ['id1','id3','id5','id7']:
+                    sample=veh_df.loc[i[0]-1:i[-1]]
+                else:
+                    sample=veh_df.loc[i[0]-1:i[-1]]
+                id_=veh_df.loc[i[-1],'ID_status']
+            sample = sample.reset_index(drop=True)
+            sample['ts'] = pd.to_datetime(sample['ts'])
+            start_time=sample.head(1)['ts'].item()
+            end_time=sample.tail(1)['ts'].item()
+            sample_list = row_split(str(start_time),str(end_time))    
+            l=[]
+            for k in range(len(sample_list)):
+                temp_dict={}
+                sample2=sample[(sample['ts']>=pd.to_datetime(sample_list[k][0]))&(sample['ts']<=pd.to_datetime(sample_list[k][1]))]
+                sample2.reset_index(drop=True,inplace=True)
+                sample2.loc[0,'Distance']=0
+                sample2['new_time_diff'] = sample2['ts'].diff().fillna(pd.Timedelta(minutes=0)).dt.total_seconds() / 60
+                ign_cst = ign_time_cst(sample2['ign_status'].tolist(),sample2['new_time_diff'].tolist())
+                keys2=['termid','reg_numb','start_time','end_time','total_obs','max_time_gap','initial_level','end_level',
+                    'ign_time_cst','total_dist','ID_status','indicator']
+                values2=[j,sample2.head(1)['regNumb'].item(),sample_list[k][0],sample_list[k][1],
+                        len(sample2),
+                        sample2['new_time_diff'].max(),sample2.head(1)['currentFuelVolumeTank1'].item(),sample2.tail(1)['currentFuelVolumeTank1'].item(),
+                        ign_cst,sample2['Distance'].sum(),id_,sample.head(1)['Indicator'].item()]             
+                temp_dict.update(zip(keys2,values2))
+                l.append(temp_dict)
+            within_df = pd.DataFrame(l)
+            within_df = within_df.reset_index(drop=True)
+            list_.append(within_df)
+        ff=pd.concat(list_)
+        ff['start_time'] = pd.to_datetime(ff['start_time'])
+        ff['end_time']=pd.to_datetime(ff['end_time'])
+        ff.drop_duplicates(subset=['end_time'],keep='first',inplace=True)
+        
+        # Ignition time Calculation from Ignition Master Data
+        ff.reset_index(drop=True,inplace=True)
+        veh_ign = ign[ign['termid']==j]
+        veh_ign = veh_ign.reset_index(drop=True)
+        veh_f_df_dict = ff.to_dict('records')
+        for row in veh_f_df_dict:
+            ign_ = veh_ign.loc[(((veh_ign['strt']<=row['end_time'])&(veh_ign['strt']>=row['start_time'])) | ((veh_ign['end']<=row['end_time'])&(veh_ign['end']>=row['start_time'])) | ((veh_ign['strt']<=row['start_time'])&(veh_ign['end']>=row['end_time'])))]
+            ign_.loc[ign_['strt']<row['start_time'],'strt']=row['start_time']
+            ign_.loc[ign_['end']>row['end_time'],'end']=row['end_time']
+            ign_['dur(mins)']=(ign_['end']-ign_['strt'])/timedelta(minutes=1)
+            row['ign_time_igndata'] = sum(ign_['dur(mins)'])
+        ff1 = pd.DataFrame(veh_f_df_dict)
+        return ff1
+    except Exception as e:
+        print(f"An error Occured: {e}")
+        sys.exit(1)
 
 def final_cal(df):
     df=df.reset_index(drop=True)
@@ -426,9 +410,6 @@ def final_cal(df):
 if __name__ == '__main__':
 
     # num_cores = cpu_count()
-    # cst = pyreadr.read_r('../INPUT_DATA/data/cst_all_aug1_16.RDS')[None]
-    # ign = pyreadr.read_r('../INPUT_DATA/data/dtignmast.RDS')[None]
-
     if len(sys.argv) < 3:
       print('InputFilesError: You need to provide the path of the RDS files as input.\nCST data followed by ignition data.')
     else:
@@ -454,51 +435,54 @@ if __name__ == '__main__':
       termid_list = cst[cst['termid'].isin(ign['termid'])]['termid'].unique().tolist()
 
       new_cst = pd.concat([melt_conc(termid) for termid in tqdm(termid_list)])   # melting ign, concat and Interpolations
-        # print(new_cst.shape)
       grouped = new_cst.groupby(['termid'])
       new_cst_1 = grouped.progress_apply(custom_function)                         #shift cut and Interpolations
-        # print(new_cst_1.shape)
       new_cst_1=new_cst_1.reset_index(drop=True)
-      new_cst_1['termid']=new_cst_1['termid'].astype('int32')                   # to make memory efficient
+      new_cst_1['termid']=new_cst_1['termid'].astype('int32')                   # to make dataframe memory efficient
       new_cst_1['mine']=new_cst_1['mine'].astype('category')
       new_cst_1['class']=new_cst_1['class'].astype('category')
       new_cst_1['Indicator']=new_cst_1['Indicator'].astype('category')
       grouped_1 = new_cst_1.groupby(['termid'])
-      new_cst_2 = grouped_1.progress_apply(c_func)
+      new_cst_2 = grouped_1.progress_apply(c_func)                             # Ignition status markings
       new_cst_2=new_cst_2.reset_index(drop=True)
-        # print(new_cst_2.shape)
 
-      tr_final_df = pd.concat([binary_parameters(i) for i in tqdm(termid_list)])
-      cst_1 = id_attachment(tr_final_df)
+      tr_final_df = pd.concat([binary_parameters(i) for i in tqdm(termid_list)])     # Tri parameters Binary values
+      cst_1 = id_attachment(tr_final_df)                                             # ID status add
       cst_1 = cst_1[['regNumb','currentFuelVolumeTank1','ign_status','ts','termid','Distance','Indicator','ID_status']]
       cst_1['termid']=cst_1['termid'].astype('int32')
       ign['termid']=ign['termid'].astype('int32')
       cst_1['Indicator']=cst_1['Indicator'].astype('category')
       cst_1['ID_status']=cst_1['ID_status'].astype('category')
-      final_df = pd.concat([ID_event(termid) for termid in tqdm(termid_list[:10])])
-      final_df1 = final_cal(final_df)
+      final_df = pd.concat([ID_event(termid) for termid in tqdm(termid_list[:10])])      # event algorithm
+      final_df1 = final_cal(final_df)                                
 
 
-
+    # Error Logging for Output Files
       if len(sys.argv) == 3:
         new_cst_2.to_csv('New_Synthetic_CST.csv')
         final_df1.to_csv('ID_event_data.csv')
         print('Data saved successfully to the above path')
-
-      # Check whether the last arg is appropriate
+      elif len(sys.argv)==4:
+          print('FileArgumentsError: Kindly put 4 file arguments. There are 3.\nExiting....')
+          sys.exit(0)
       elif len(sys.argv) == 5:
         outfile1 = Path(sys.argv[3])
+        print(str(outfile1).split('\\')[-1])
         outfile2 = Path(sys.argv[4])
         if (outfile1.suffix != '.csv')or(outfile2.suffix != '.csv'):
-          print('Need to write output to a CSV file only\nExiting....')
+          print('OutputFilesFormatError: Need to write outputs to CSV files only\nExiting....')
           sys.exit(0)
+        elif (outfile1 == outfile2)or(str(outfile1).split('\\')[-1]==str(outfile2).split('\\')[-1]):
+          print("OutputFilesNameError: Output file Paths or Names can't be same\nExiting...")
+          sys.exit(0)
+          
         new_cst_2.to_csv(outfile1)
-        final_df2.to_csv(outfile2)
-        print(f'Data saved successfully to {outfile1}\n and \n{outfile2}')
+        final_df1.to_csv(outfile2)
+        print(f'Synthetic CST and Event data are successfully saved to \n{outfile1} and {outfile2}.')
 
       # Check for extra args
       else:
-        print('Supports atleast 2 and atmost 3 file arguments')
+        print('Supports atleast 2 or 4 file arguments.')
 
 
 
