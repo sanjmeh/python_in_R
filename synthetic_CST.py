@@ -1,4 +1,4 @@
-import pandas as pd 
+import pandas as pd
 import numpy as np
 import sys
 import matplotlib.pyplot as plt
@@ -119,10 +119,10 @@ def melt_conc(i):
 
     return cst_1
 
-# For shift cutting and Interpolations 
+# For shift cutting and Interpolations
 
 def shift_custom_function(group):
-    
+
     cst_term = new_cst[new_cst['termid']==group.head(1)['termid'].item()]
     group['ts']=pd.to_datetime(group['ts']);cst_term['ts']=pd.to_datetime(cst_term['ts'])
     group.sort_values(by=['ts'],inplace=True)
@@ -180,7 +180,7 @@ def shift_custom_function(group):
     return df
 
 def custom_function(group):
-    
+
     group_1 = group.groupby('date')
     group_result = group_1.apply(shift_custom_function)
     group_result=group_result.reset_index(drop=True)
@@ -214,7 +214,7 @@ def c_func(group):
     return group
 
 
-## ID Event Breaking 
+## ID Event Breaking
 
 def calculate_consecutive_haversine_distances(df):
     distances = []
@@ -376,7 +376,7 @@ def ID_event(j):
             values2=[j,sample2.head(1)['regNumb'].item(),sample_list[k][0],sample_list[k][1],
                     len(sample2),
                     sample2['new_time_diff'].max(),sample2.head(1)['currentFuelVolumeTank1'].item(),sample2.tail(1)['currentFuelVolumeTank1'].item(),
-                    ign_cst,sample2['Distance'].sum(),id_,sample.head(1)['Indicator'].item()]             
+                    ign_cst,sample2['Distance'].sum(),id_,sample.head(1)['Indicator'].item()]
             temp_dict.update(zip(keys2,values2))
             l.append(temp_dict)
         within_df = pd.DataFrame(l)
@@ -386,7 +386,7 @@ def ID_event(j):
     ff['start_time'] = pd.to_datetime(ff['start_time'])
     ff['end_time']=pd.to_datetime(ff['end_time'])
     ff.drop_duplicates(subset=['end_time'],keep='first',inplace=True)
-    
+
     ff.reset_index(drop=True,inplace=True)
     veh_ign = ign[ign['termid']==j]
     veh_ign = veh_ign.reset_index(drop=True)
@@ -493,16 +493,9 @@ if __name__ == '__main__':
           print('Need to write output to a CSV file only\nExiting....')
           sys.exit(0)
         new_cst_2.to_csv(outfile1)
-        final_df2.to_csv(outfile2)
+        final_df1.to_csv(outfile2)
         print(f'Data saved successfully to {outfile1}\n and \n{outfile2}')
 
       # Check for extra args
       else:
         print('Supports atleast 2 and atmost 3 file arguments')
-
-
-
-
-
-
-
