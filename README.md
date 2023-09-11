@@ -17,13 +17,18 @@ python run.py -IA '_your input allmods file path_' -IC '_your input cst file pat
 python run.py -IA '_your input allmods file path_' -IC '_your input cst file path' -O '_output folder path_' -t 1204000785 1204000506
 ```
 
-# Mindshift Stationary-Movement Allmods algorithm :
+# Mindshift Synthetic-Enriched CST algorithm :
 
+Terminal command instruction:
 ```
-pip install -r requirements.txt
+python synthetic_CST.py cst_data_path (space) ignition_data_path (space) hectronics_data_path (space) output_data_path
 ```
-1. **Prerequisite:** you need to have CST and Ign Master files in 'data' folder like before. Then run below command in terminal.
+**prerequisites:** 
 
-```
-python dist_allmods.py
-```
+       *i. You must have both cst and ign data in RDS format, only for required vehicles.*
+
+       *ii. You must have Hectronics Dispensing data in csv format.*
+       
+       *iii. Input cst must contain mentioned columns : **regNumb**,**termid**,**ts**,**latitude**,**longitude**,**currentFuelVolumeTank1**,**mine**,**class**. Others are optional*
+
+       *iv.  Input ignition must contain mentioned columns : **termid**,**strt**,**stop**,**veh**. Others are optional.*
