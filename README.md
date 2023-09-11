@@ -25,6 +25,9 @@ python synthetic_CST.py cst_data_path (space) ignition_data_path (space) hectron
 ```
 **prerequisites:** 
        *i. You must have both cst and ign data in RDS format, only for required vehicles.*
+
        *ii. You must have Hectronics Dispensing data in csv format.*
+       
        *iii. Input cst must contain mentioned columns : **regNumb**,**termid**,**ts**,**latitude**,**longitude**,**currentFuelVolumeTank1**,**mine**,**class**. Others are optional*
+       
        *iv.  Input ignition must contain mentioned columns : **termid**,**strt**,**stop**,**veh**. Others are optional.*
