@@ -1,13 +1,11 @@
-import pandas as pd 
+import pandas as pd
 import numpy as np
 import sys
-import matplotlib.pyplot as plt
 from datetime import datetime, timedelta, time
 from haversine import haversine, Unit
 from haversine import haversine_vector, Unit
 from tqdm import tqdm
 from time import sleep
-import pyarrow.feather as feather
 from pathlib import Path
 import pytz
 import pyreadr
@@ -21,7 +19,6 @@ import warnings
 warnings.filterwarnings("ignore")
 pd.set_option('display.max_rows', 150)
 from multiprocess import cpu_count
-import gspread
 
 
 def calculate_consecutive_haversine_distances(df):
@@ -86,7 +83,7 @@ def refuel_end_injection(i):
             injected_data.append({'termid':i,'regNumb':term_df.head(1)['regNumb'].item(),'ts':refuel_end_time,
                                   'currentFuelVolumeTank1':refuel_end_level,'Refuel_status':'Refuel_end'})
     injected_df = pd.DataFrame(injected_data)
-#     normal_df=normal_df.append(term_df)  
+#     normal_df=normal_df.append(term_df)
     concat_df = pd.concat([term_df,injected_df],axis=0,ignore_index=True)
     concat_df.sort_values(by=['termid','ts'],inplace=True)
     return concat_df
@@ -305,18 +302,18 @@ if __name__ == '__main__':
         print('CstDataError: Fuel levels API values error/Blank. Kindly pass a valid cst data.\nExiting....')
         sys.exit(0)
 
-      disp_cst = pd.concat([disp_cst(i) for i in tqdm(regNumb_list)])
-      disp_cst1 = pd.concat([refuel_end_injection(i) for i in tqdm(termid_list)])
-      disp_cst2 = pd.concat([refuel_end_cum_distance(i) for i in tqdm(termid_list)])
-      new_cst = pd.concat([melt_conc(termid) for termid in tqdm(termid_list)])
+      disp_cst = pd.concat([disp_cst(i) for i in tqdm(regNumb_list[:1])])
+      disp_cst1 = pd.concat([refuel_end_injection(i) for i in tqdm(termid_list[:1])])
+      disp_cst2 = pd.concat([refuel_end_cum_distance(i) for i in tqdm(termid_list[:1])])
+      new_cst = pd.concat([melt_conc(termid) for termid in tqdm(termid_list[:1])])
       new_cst['termid']=new_cst['termid'].astype(int)
       new_cst['date'] = new_cst['ts'].dt.date
       grouped = new_cst.groupby('termid')
       new_cst_1=grouped.progress_apply(custom_function)
-      new_cst_1=new_cst_1.reset_index(drop=True)    
-      new_cst_1['date'] = new_cst_1['ts'].dt.date 
+      new_cst_1=new_cst_1.reset_index(drop=True)
+      new_cst_1['date'] = new_cst_1['ts'].dt.date
       new_cst_1.drop(['Time_diff','Station Name'],axis=1,inplace=True)
-    #   print(len(new_cst_1))                           
+    #   print(len(new_cst_1))
 
 
     # Error Logging for Output Files
@@ -337,7 +334,7 @@ if __name__ == '__main__':
         # elif (outfile1 == outfile2)or(str(outfile1).split('\\')[-1]==str(outfile2).split('\\')[-1]):
         #   print("OutputFilesNameError: Output file Paths or Names can't be same\nExiting...")
         #   sys.exit(0)
-          
+
         new_cst_1.to_csv(outfile1)
         # final_df1.to_csv(outfile2)
         print(f' Enriched CST is successfully saved to below path: \n{outfile1}.')
