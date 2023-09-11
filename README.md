@@ -23,12 +23,12 @@ Terminal command instruction:
 ```
 python synthetic_CST.py cst_data_path (space) ignition_data_path (space) hectronics_data_path (space) output_data_path
 ```
-**prerequisites:** 
+**Prerequisites:** 
 
-       *i. You must have both cst and ign data in RDS format, only for required vehicles.*
+1. You must have both cst and ign data in RDS format, only for required vehicles.
 
-       *ii. You must have Hectronics Dispensing data in csv format.*
+2. You must have Hectronics Dispensing data in csv format.
        
-       *iii. Input cst must contain mentioned columns : **regNumb**,**termid**,**ts**,**latitude**,**longitude**,**currentFuelVolumeTank1**,**mine**,**class**. Others are optional*
+3. Input cst must contain mentioned columns : **regNumb**,**termid**,**ts**,**latitude**,**longitude**,**currentFuelVolumeTank1**,**mine**,**class**. Others are optional
 
-       *iv.  Input ignition must contain mentioned columns : **termid**,**strt**,**stop**,**veh**. Others are optional.*
+4. Input ignition must contain mentioned columns : **termid**,**strt**,**stop**,**veh**. Others are optional.
