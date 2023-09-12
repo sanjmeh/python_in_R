@@ -1,4 +1,4 @@
-# Mindshift Pilferage Three algorithms
+# 1. Mindshift Pilferage Three algorithms
 
 
 ```
@@ -17,7 +17,7 @@ python run.py -IA '_your input allmods file path_' -IC '_your input cst file pat
 python run.py -IA '_your input allmods file path_' -IC '_your input cst file path' -O '_output folder path_' -t 1204000785 1204000506
 ```
 
-# Mindshift Synthetic-Enriched CST algorithm :
+# 2. Mindshift Synthetic-Enriched CST algorithm :
 
 Terminal command instruction:
 ```
@@ -32,3 +32,11 @@ python synthetic_CST.py cst_data_path (space) ignition_data_path (space) hectron
        *iii. Input cst must contain mentioned columns : **regNumb**,**termid**,**ts**,**latitude**,**longitude**,**currentFuelVolumeTank1**,**mine**,**class**. Others are optional*
 
        *iv.  Input ignition must contain mentioned columns : **termid**,**strt**,**stop**,**veh**. Others are optional.*
+
+
+# 3. Mindshift ID Event algorithm:
+
+Terminal command instruction 
+```
+python synthetic_CST_ID_event.py enriched_cst_data_path (space) ignition_data_path (space) output_data_path
+```
