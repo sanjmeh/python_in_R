@@ -39,5 +39,5 @@ python synthetic_CST.py cst_data_path (space) ignition_data_path (space) hectron
 
 Terminal command instruction 
 ```
-python synthetic_CST_ID_event.py enriched_cst_data_path (space) ignition_data_path (space) output_data_path
+python ID_event.py enriched_cst_data_path (space) ignition_data_path (space) output_data_path
 ```
