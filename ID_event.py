@@ -6,22 +6,22 @@ from datetime import datetime, timedelta, time
 from haversine import haversine, Unit
 from haversine import haversine_vector, Unit
 from tqdm import tqdm
-from time import sleep
-import pyarrow.feather as feather
+# from time import sleep
+# import pyarrow.feather as feather
 from pathlib import Path
-import pytz
+# import pytz
 import pyreadr
 import time
 from time import time as t
 from itertools import combinations, permutations
-import math
-import os
+# import math
+# import os
 tqdm.pandas()
 import warnings
 warnings.filterwarnings("ignore")
 pd.set_option('display.max_rows', 150)
 from multiprocess import cpu_count
-import gspread
+# import gspread
 
 def cons_id_grouping(list_):
     buckets = []
@@ -90,27 +90,27 @@ def ign_time_cst(a,b): # output -> final ign time for each event
 #     print(f'my ign_time_cst function execution time:{time.time()-s_t}s')
     return ign_time
 
-def ign_time_ignM(i):    # input -> each veh/termid  , output -> dataframe
-    s_t = time.time()
-    veh_f_df = final_df[final_df['termid']==i]
-    veh_f_df = veh_f_df.reset_index(drop=True)
-    veh_ign = ign[ign['termid']==i]
-    veh_ign = veh_ign.reset_index(drop=True)
-    for ind,row in veh_f_df.iterrows():
-        ign_ = veh_ign.loc[(((veh_ign['strt']<=pd.to_datetime(row['end_time']))&(veh_ign['strt']>=pd.to_datetime(row['start_time']))) | ((veh_ign['end']<=pd.to_datetime(row['end_time']))&(veh_ign['end']>=pd.to_datetime(row['start_time']))) | ((veh_ign['strt']<=pd.to_datetime(row['start_time']))&(veh_ign['end']>=pd.to_datetime(row['end_time']))))]
-        ign_.loc[ign_['strt']<pd.to_datetime(row['start_time']),'strt']=pd.to_datetime(row['start_time'])
-        ign_.loc[ign_['end']>pd.to_datetime(row['end_time']),'end']=pd.to_datetime(row['end_time'])
-        ign_['dur(mins)']=(ign_['end']-ign_['strt'])/timedelta(minutes=1)
-        veh_f_df.loc[ind,'ign_time_igndata'] = sum(ign_['dur(mins)'])
-#     print(f'AA ign time_ignM function execution time:{time.time()-s_t}s')
-    return veh_f_df
+# def ign_time_ignM(i):    # input -> each veh/termid  , output -> dataframe
+#     s_t = time.time()
+#     veh_f_df = final_df[final_df['termid']==i]
+#     veh_f_df = veh_f_df.reset_index(drop=True)
+#     veh_ign = ign[ign['termid']==i]
+#     veh_ign = veh_ign.reset_index(drop=True)
+#     for ind,row in veh_f_df.iterrows():
+#         ign_ = veh_ign.loc[(((veh_ign['strt']<=pd.to_datetime(row['end_time']))&(veh_ign['strt']>=pd.to_datetime(row['start_time']))) | ((veh_ign['end']<=pd.to_datetime(row['end_time']))&(veh_ign['end']>=pd.to_datetime(row['start_time']))) | ((veh_ign['strt']<=pd.to_datetime(row['start_time']))&(veh_ign['end']>=pd.to_datetime(row['end_time']))))]
+#         ign_.loc[ign_['strt']<pd.to_datetime(row['start_time']),'strt']=pd.to_datetime(row['start_time'])
+#         ign_.loc[ign_['end']>pd.to_datetime(row['end_time']),'end']=pd.to_datetime(row['end_time'])
+#         ign_['dur(mins)']=(ign_['end']-ign_['strt'])/timedelta(minutes=1)
+#         veh_f_df.loc[ind,'ign_time_igndata'] = sum(ign_['dur(mins)'])
+# #     print(f'AA ign time_ignM function execution time:{time.time()-s_t}s')
+#     return veh_f_df
 
 
-def select_ign_time(row):     # row wise , Returns row
-    if ((row['ign_time_igndata']/row['total_time'])*100 == 100)or((row['ign_time_igndata']/row['total_time'])*100 == 0):
-        return row['ign_time_cst']
-    else:
-        return row['ign_time_igndata']
+# def select_ign_time(row):     # row wise , Returns row
+#     if ((row['ign_time_igndata']/row['total_time'])*100 == 100)or((row['ign_time_igndata']/row['total_time'])*100 == 0):
+#         return row['ign_time_cst']
+#     else:
+#         return row['ign_time_igndata']
 
 def Off_On_grouping(indicator):
     buckets = []
@@ -170,7 +170,7 @@ def event_creation(df):
     temp_dict.update(zip(keys,values))
     return temp_dict
 
-def aa(termid):
+def ign_exist(termid):
     veh_df = new_cst_1[new_cst_1['termid']==termid]
     veh_df.reset_index(drop=True,inplace=True)
     veh_df['ts'] = pd.to_datetime(veh_df['ts'])
@@ -180,7 +180,9 @@ def aa(termid):
     reverse_groups = From_Togrouping(veh_df['Indicator'].tolist(),'end','strt')
     for i in reverse_groups:
         veh_df.loc[i[0]+1:i[-1]-1,'currentIgn']=0
-    veh_df.loc[:groups[0][0]-1,'currentIgn']=0
+    # print(groups[0] , len(veh_df))
+    if groups[0][0]!=0:
+        veh_df.loc[:groups[0][0]-1,'currentIgn']=0
     combined=[]
     for i in range(len(groups)):
         combined.append(groups[i])
@@ -241,14 +243,19 @@ def aa(termid):
                         t_dict = event_creation(sample3)
                         shift_wise_list.append(t_dict)
                 shift_df=pd.DataFrame(shift_wise_list)
+#                 print(shift_df.columns)
             l.append(shift_df)
         strt_end_df = pd.concat(l)
-        strt_end_df['start_time']=pd.to_datetime(strt_end_df['start_time'])
-        strt_end_df.sort_values(by=['start_time'],inplace=True)
-        final_term_df=final_term_df.append(strt_end_df)
-        final_term_df.reset_index(drop=True,inplace=True)
-        
+        if len(strt_end_df)!=0:
+#             print(i)
+#         print(strt_end_df.head())
+            strt_end_df['start_time']=pd.to_datetime(strt_end_df['start_time'])
+            strt_end_df.sort_values(by=['start_time'],inplace=True)
+            final_term_df=final_term_df.append(strt_end_df)
+            final_term_df.reset_index(drop=True,inplace=True)
+
     veh_ign = ign[ign['termid']==termid]
+    # if len(veh_ign)!=0:
     veh_ign = veh_ign.reset_index(drop=True)
     veh_f_df_dict = final_term_df.to_dict('records')
     for row in veh_f_df_dict:
@@ -258,7 +265,101 @@ def aa(termid):
         ign_['dur(mins)']=(ign_['end']-ign_['strt'])/timedelta(minutes=1)
         row['ign_time_igndata'] = sum(ign_['dur(mins)'])
     final_term_df = pd.DataFrame(veh_f_df_dict)
+    # else:
+    #     final_term_df['ign_time_igndata'] = 0
     return final_term_df
+
+def ign_not_exist(termid):
+    veh_df = new_cst_1[new_cst_1['termid']==termid]
+    veh_df.reset_index(drop=True,inplace=True)
+    veh_df['ts'] = pd.to_datetime(veh_df['ts'])
+    veh_df.sort_values(by=['ts'],ascending=True,inplace=True)
+    veh_df['Time_diff'] = veh_df['ts'].diff().fillna(pd.Timedelta(minutes=0)).dt.total_seconds() / 60
+    veh_df['con_cum_distance'] = veh_df['cum_distance'].diff().fillna(0)
+    veh_df['Cons_Speed'] = veh_df['con_cum_distance']/veh_df['Time_diff']     #Distance
+    veh_df['Cons_Speed'] = veh_df['Cons_Speed'].fillna(0)
+    veh_df['veh_movement_status'] = 1
+    veh_df.loc[veh_df['Cons_Speed']<50 , 'veh_movement_status'] = 0
+    veh_df['fuel_consumption']=veh_df['currentFuelVolumeTank1'].diff().fillna(0)
+    veh_df['Cons_lph']=(veh_df['fuel_consumption']/veh_df['Time_diff'])*60
+    veh_df['fuel_movement_status'] = 1
+    veh_df.loc[abs(veh_df['Cons_lph'])<10 , 'fuel_movement_status'] = 0
+    veh_df.loc[0,'fuel_movement_status']=0
+    veh_df['currentIgn'] = 0
+#     try:
+    veh_df=id_attachment(veh_df)
+    groups = cons_id_grouping(veh_df['ID_status'].tolist())
+    groups=[sublist for sublist in groups if not (len(sublist) == 1 and sublist[0] == 0)]
+    list_=[]
+    for index,i in enumerate(groups):
+#         temp_dict={}
+        if (i[0]==0)&(len(i)!=1):
+            sample = veh_df.loc[i[0]:i[-1]]
+            id_=veh_df.loc[i[-1],'ID_status']
+        elif (i[0]!=0)and(veh_df.loc[i[0],'ID_status'] in ['id1','id3','id7']):
+            sample=veh_df.loc[i[0]-1:i[-1]]
+            id_ = veh_df.loc[i[-1],'ID_status']
+        elif (i[0]!=0)and(veh_df.loc[i[0],'ID_status'] =='id5'):
+            if (veh_df.loc[i[0],'Indicator']=='strt')&(i[-1]+1<len(veh_df)):
+#                 print(i,len(veh_df))
+                inc = groups[index+1]
+                sample = veh_df.loc[i[0]-1:inc[-1]]
+                id_ = veh_df.loc[inc[-1],'ID_status']
+            else:
+                sample = veh_df.loc[i[0]-1:i[-1]]
+                id_ = veh_df.loc[i[-1],'ID_status']
+        elif (i[0]!=0)and(veh_df.loc[i[0],'ID_status'] in ['id2','id4','id6','id8'])&(i[-1]+1<=len(veh_df)-1):
+            if veh_df.loc[i[-1]+1,'ID_status'] in ['id1','id3','id5','id7']:
+                sample=veh_df.loc[i[0]-1:i[-1]]
+            else:
+                sample=veh_df.loc[i[0]-1:i[-1]]
+            id_=veh_df.loc[i[-1],'ID_status']
+        sample = sample.reset_index(drop=True)
+        sample['ts'] = pd.to_datetime(sample['ts'])
+        start_time=sample.head(1)['ts'].item()
+        end_time=sample.tail(1)['ts'].item()
+        sample_list = row_split(str(start_time),str(end_time))
+        l=[]
+        for k in range(len(sample_list)):
+            temp_dict={}
+            sample2=sample[(sample['ts']>=pd.to_datetime(sample_list[k][0]))&(sample['ts']<=pd.to_datetime(sample_list[k][1]))]
+            sample2.reset_index(drop=True,inplace=True)
+            sample2.loc[0,'con_cum_distance']=0
+            sample2['new_time_diff'] = sample2['ts'].diff().fillna(pd.Timedelta(minutes=0)).dt.total_seconds() / 60
+            ign_cst = ign_time_cst(sample2['currentIgn'].tolist(),sample2['new_time_diff'].tolist())
+            keys2=['termid','reg_numb','start_time','end_time','total_obs','max_time_gap','initial_level','end_level',
+                   'ign_time_cst','total_dist','ID_status','indicator']
+            values2=[termid,sample2.head(1)['regNumb'].item(),sample_list[k][0],sample_list[k][1],
+                     len(sample2),
+                     sample2['new_time_diff'].max(),sample2.head(1)['currentFuelVolumeTank1'].item(),sample2.tail(1)['currentFuelVolumeTank1'].item(),
+                     ign_cst,sample2['con_cum_distance'].sum(),id_,sample.head(1)['Indicator'].item()]            
+            temp_dict.update(zip(keys2,values2))
+            l.append(temp_dict)
+        within_df = pd.DataFrame(l)
+        within_df = within_df.reset_index(drop=True)
+        list_.append(within_df)
+    ff=pd.concat(list_)
+#     print(ff.head())
+#     print(ff.shape)
+#     print(ff.head())
+    ff['start_time'] = pd.to_datetime(ff['start_time'])
+    ff['end_time']=pd.to_datetime(ff['end_time'])
+#     ff.drop_duplicates(subset=['end_time'],keep='first',inplace=True)
+    
+    ff.reset_index(drop=True,inplace=True)
+    ff['ign_time_igndata'] = 0
+    
+    return ff
+
+def final_id_grouping(i):
+#     for i in termid_list:
+    if new_cst_1[new_cst_1['termid']==i]['Indicator'].nunique()!=0:
+        result = ign_exist(i)
+    else:
+        result = ign_not_exist(i)
+        
+    return result
+
 
 def additional_parameters(final_df):
 
@@ -307,21 +408,18 @@ if __name__ == '__main__':
         ign.rename(columns={'stop':'end'},inplace=True)
         ign['strt'] = ign['strt'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
         ign['end'] = ign['end'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+        ign = ign[(ign['strt']>=new_cst_1['ts'].min())&(ign['end']<=new_cst_1['ts'].max())]
         ign['termid'] = ign['termid'].astype(int)
 
         termid_list = new_cst_1['termid'].unique().tolist()
-        final_df = pd.concat([aa(i) for i in tqdm(termid_list[:1])])      
+        final_df = pd.concat([final_id_grouping(i) for i in tqdm(termid_list[:10])])   
         final_df1 = additional_parameters(final_df)
         final_df_dict=final_df1.to_dict('records')
         final_df2 = pd.DataFrame([final_threshold_modification(i) for i in tqdm(final_df_dict)])
 
         if len(sys.argv) == 3:
             final_df2.to_csv('Enriched_cst_ID_event.csv')
-            # final_df1.to_csv('ID_event_data.csv')
             print('ID Data saved successfully into your Working Directory.')
-        #   elif len(sys.argv)==5:
-        #       print('FileArgumentsError: Kindly put 4 file arguments. There are 3.\nExiting....')
-        #       sys.exit(0)
         elif len(sys.argv) == 4:
             outfile1 = Path(sys.argv[3])
             # print(str(outfile1).split('\\')[-1])
