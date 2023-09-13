@@ -300,7 +300,7 @@ if __name__ == '__main__':
       ign.rename(columns={'stop':'end'}, inplace=True)
       ign['strt'] = ign['strt'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
       ign['end'] = ign['end'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
-      ign = ign.loc[(((ign['strt']<=cst['ts'].max())&(ign['strt']>=cst['ts'].min())) | ((ign['end']<=cst['ts'].max())&(ign['end']>=cst['ts'].min())) | ((ign['strt']<=cst['ts'].min())&(ign['end']>=cst['ts'].max())))]
+      ign = ign[(ign['strt']>=cst['ts'].min())&(ign['end']<=cst['ts'].max())]
       ign['termid'] = ign['termid'].astype(int)
       ign = ign[['termid','veh','strt','end']]
     #   termid_list = cst[cst['termid'].isin(ign['termid'])]['termid'].unique().tolist()
@@ -319,8 +319,10 @@ if __name__ == '__main__':
       disp = disp[(disp['ts']>=cst['ts'].min())&(disp['ts']<=cst['ts'].max())]
       disp['Quantity'] = disp['Quantity'].str.replace(',','').astype(float)
       disp = disp[disp['Quantity']>20]
-
+      print(ign['strt'].min(),ign['end'].max())
       disp_cst = pd.concat([disp_cst(i) for i in tqdm(regNumb_list)])
+    #   print(disp_cst.head())
+    #   print(disp_cst.tail())
       disp_cst1 = pd.concat([refuel_end_injection(i) for i in tqdm(termid_list)])
     #   print(disp_cst1.head())
       disp_cst2 = pd.concat([refuel_end_cum_distance(i) for i in tqdm(termid_list)])

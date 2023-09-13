@@ -251,7 +251,7 @@ def ign_exist(termid):
 #         print(strt_end_df.head())
             strt_end_df['start_time']=pd.to_datetime(strt_end_df['start_time'])
             strt_end_df.sort_values(by=['start_time'],inplace=True)
-            final_term_df= pd.concat([final_term_df,strt_end_df])
+            final_term_df=final_term_df.append(strt_end_df)
             final_term_df.reset_index(drop=True,inplace=True)
 
     veh_ign = ign[ign['termid']==termid]
@@ -357,6 +357,7 @@ def final_id_grouping(i):
         result = ign_exist(i)
     else:
         result = ign_not_exist(i)
+        
     return result
 
 
@@ -407,22 +408,18 @@ if __name__ == '__main__':
         ign.rename(columns={'stop':'end'},inplace=True)
         ign['strt'] = ign['strt'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
         ign['end'] = ign['end'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
-        ign = ign.loc[(((ign['strt']<=new_cst_1['ts'].max())&(ign['strt']>=new_cst_1['ts'].min())) | ((ign['end']<=new_cst_1['ts'].max())&(ign['end']>=new_cst_1['ts'].min())) | ((ign['strt']<=new_cst_1['ts'].min())&(ign['end']>=new_cst_1['ts'].max())))]
+        ign = ign[(ign['strt']>=new_cst_1['ts'].min())&(ign['end']<=new_cst_1['ts'].max())]
         ign['termid'] = ign['termid'].astype(int)
 
         termid_list = new_cst_1['termid'].unique().tolist()
-        final_df = pd.concat([final_id_grouping(i) for i in tqdm(termid_list[:10])])      
+        final_df = pd.concat([final_id_grouping(i) for i in tqdm(termid_list[:10])])   
         final_df1 = additional_parameters(final_df)
         final_df_dict=final_df1.to_dict('records')
         final_df2 = pd.DataFrame([final_threshold_modification(i) for i in tqdm(final_df_dict)])
 
         if len(sys.argv) == 3:
             final_df2.to_csv('Enriched_cst_ID_event.csv')
-            # final_df1.to_csv('ID_event_data.csv')
             print('ID Data saved successfully into your Working Directory.')
-        #   elif len(sys.argv)==5:
-        #       print('FileArgumentsError: Kindly put 4 file arguments. There are 3.\nExiting....')
-        #       sys.exit(0)
         elif len(sys.argv) == 4:
             outfile1 = Path(sys.argv[3])
             # print(str(outfile1).split('\\')[-1])
