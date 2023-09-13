@@ -275,11 +275,13 @@ if __name__ == '__main__':
       infile_cst, infile_igtn,disp = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
 
       # Check validity of both args at once
-      if (infile_cst.suffix == infile_igtn.suffix != '.RDS') or (disp.suffix!='.csv'):
+      if (infile_igtn.suffix != '.RDS') or (disp.suffix!='.csv'):
         print('FileFormatError: Only RDS files for cst/ign and csv for Hec data applicable as input\nExiting....')
         sys.exit(0)
-
-      cst = pyreadr.read_r(infile_cst)[None]
+      if infile_cst.suffix == '.RDS':
+          cst = pyreadr.read_r(infile_cst)[None]
+      else:
+          cst = pd.read_csv(infile_cst)
       ign = pyreadr.read_r(infile_igtn)[None]
       cst['ts'] = cst['ts'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
       cst['date'] = pd.to_datetime(cst['ts']).dt.date.astype(str)
@@ -305,10 +307,10 @@ if __name__ == '__main__':
         print('CstDataError: Fuel levels API values error/Blank. Kindly pass a valid cst data.\nExiting....')
         sys.exit(0)
 
-      disp_cst = pd.concat([disp_cst(i) for i in tqdm(regNumb_list)])
-      disp_cst1 = pd.concat([refuel_end_injection(i) for i in tqdm(termid_list)])
-      disp_cst2 = pd.concat([refuel_end_cum_distance(i) for i in tqdm(termid_list)])
-      new_cst = pd.concat([melt_conc(termid) for termid in tqdm(termid_list)])
+      disp_cst = pd.concat([disp_cst(i) for i in tqdm(regNumb_list[:1])])
+      disp_cst1 = pd.concat([refuel_end_injection(i) for i in tqdm(termid_list[:1])])
+      disp_cst2 = pd.concat([refuel_end_cum_distance(i) for i in tqdm(termid_list[:1])])
+      new_cst = pd.concat([melt_conc(termid) for termid in tqdm(termid_list[:1])])
       new_cst['termid']=new_cst['termid'].astype(int)
       new_cst['date'] = new_cst['ts'].dt.date
       grouped = new_cst.groupby('termid')
