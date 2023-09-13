@@ -282,11 +282,12 @@ if __name__ == '__main__':
       if infile_cst.suffix == '.RDS':
           cst = pyreadr.read_r(infile_cst)[None]
           cst['ts'] = cst['ts'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
-          cst['date'] = pd.to_datetime(cst['ts']).dt.date.astype(str)
-          cst.rename(columns={'latitude':'lt', 'longitude':'lg'}, inplace=True)
+          
       else:
           cst = pd.read_csv(infile_cst)
           cst['ts'] = pd.to_datetime(cst['ts'])
+      cst['date'] = pd.to_datetime(cst['ts']).dt.date.astype(str)
+      cst.rename(columns={'latitude':'lt', 'longitude':'lg'}, inplace=True)
       ign = pyreadr.read_r(infile_igtn)[None]
       faulty_fuel = cst[cst['currentFuelVolumeTank1'].isnull()]['regNumb'].unique().tolist()
       cst = cst[~cst['regNumb'].isin(faulty_fuel)]
