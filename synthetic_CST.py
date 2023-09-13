@@ -185,6 +185,10 @@ def shift_custom_function(group):
         time_1_level=tem.head(1)['currentFuelVolumeTank1'].item()
 #         time_1_dist=tem.head(1)['Distance'].item()
         time_1_cum_dist=tem.head(1)['cum_distance'].item()
+    elif len(tem)==0:
+        time_1_level=temp.tail(1)['currentFuelVolumeTank1'].item()
+#         time_1_dist=tem.head(1)['Distance'].item()
+        time_1_cum_dist=temp.tail(1)['cum_distance'].item()
     else:
         time_1_level = new_fuel(temp.tail(1)['ts'].item(),tem.head(1)['ts'].item(),
                                temp.tail(1)['currentFuelVolumeTank1'].item(),
@@ -326,6 +330,8 @@ if __name__ == '__main__':
       new_cst['termid']=new_cst['termid'].astype(int)
       new_cst['date'] = new_cst['ts'].dt.date
       grouped = new_cst.groupby('termid')
+    #   print(termid_list[4:])
+    #   print(new_cst.query("termid in termid_list[4:6]"))
       new_cst_1=grouped.progress_apply(custom_function)
       new_cst_1=new_cst_1.reset_index(drop=True)    
       new_cst_1['date'] = new_cst_1['ts'].dt.date 
