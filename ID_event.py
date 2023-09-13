@@ -251,7 +251,7 @@ def ign_exist(termid):
 #         print(strt_end_df.head())
             strt_end_df['start_time']=pd.to_datetime(strt_end_df['start_time'])
             strt_end_df.sort_values(by=['start_time'],inplace=True)
-            final_term_df=final_term_df.append(strt_end_df)
+            final_term_df= pd.concat([final_term_df,strt_end_df])
             final_term_df.reset_index(drop=True,inplace=True)
 
     veh_ign = ign[ign['termid']==termid]
