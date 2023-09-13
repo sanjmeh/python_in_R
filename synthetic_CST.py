@@ -285,6 +285,7 @@ if __name__ == '__main__':
           
       else:
           cst = pd.read_csv(infile_cst)
+        #   cst['ts'] = cst['ts'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
           cst['ts'] = pd.to_datetime(cst['ts'])
       cst['date'] = pd.to_datetime(cst['ts']).dt.date.astype(str)
       cst.rename(columns={'latitude':'lt', 'longitude':'lg'}, inplace=True)
