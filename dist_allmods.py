@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import sys
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 # from d_config import cst_data_path,ign_data_path,output_data_path
 from datetime import datetime, timedelta, time
 from haversine import haversine_vector, Unit
@@ -298,7 +298,7 @@ def custom_function(group):
     for row in group_dict:
         if (row['Interpolation_status']=='Both_Interpolated')&(row['total_obs']>1):
             row['initial_level'] = new_fuel(pd.to_datetime(row['b_st']),pd.to_datetime(row['a_st']),row['b_sl'],row['a_sl'],pd.to_datetime(row['start_time']))
-            row['end_level'] = new_fuel(pd.to_datetime(row['b_et']),pd.to_datetime(row['a_et']),row['b_el'],row['a_el'],pd.to_datetime(row['end_time']))           
+            row['end_level'] = new_fuel(pd.to_datetime(row['b_et']),pd.to_datetime(row['a_et']),row['b_el'],row['a_el'],pd.to_datetime(row['end_time']))
         elif (row['Interpolation_status']=='Start_interpolated')&(row['total_obs']>1):
             row['initial_level'] = new_fuel(pd.to_datetime(row['b_st']),pd.to_datetime(row['a_st']),row['b_sl'],row['a_sl'],pd.to_datetime(row['start_time']))
         elif (row['Interpolation_status']=='End_interpolated')&(row['total_obs']>1):
@@ -340,6 +340,8 @@ if __name__ == '__main__':
       df['date'] = df['ts'].dt.date.astype(str)
       df['hour'] = df['ts'].dt.hour
       df.rename(columns={'latitude':'lt', 'longitude':'lg'}, inplace=True)
+      faulty_fuel = df[df['currentFuelVolumeTank1'].isnull()]['regNumb'].unique().tolist()
+      df = df[~df['regNumb'].isin(faulty_fuel)]
       termid_list = df['termid'].unique().tolist()
 
       # ign['strt'] = pd.to_datetime(ign['strt'], utc=True)
@@ -351,13 +353,13 @@ if __name__ == '__main__':
       final_df = pd.concat([dist_allmods(termid) for termid in tqdm(termid_list)])
       final_df_dict=final_df.to_dict('records')
       integrated_df = pd.concat([ign_time_int(termid) for termid in tqdm(termid_list)])
+      integrated_df.reset_index(drop=True, inplace=True)
       integrated_df = final_data_f(integrated_df)
       grouped = integrated_df.groupby('termid')
       integrated_df = grouped.progress_apply(custom_function)
       integrated_df=integrated_df.reset_index(drop=True)
       integrated_df['final_ign_time'] = integrated_df.apply(select_ign_time, axis=1)
-      print(integrated_df.columns)
-    #   integrated_df.drop(['start_hour','end_hour','b_sl','b_st','a_sl','a_st','b_el','b_et','a_el','a_et'],axis=1,inplace=True)
+      integrated_df.drop(['start_hour','end_hour','b_sl','b_st','a_sl','a_st','b_el','b_et','a_el','a_et'],axis=1,inplace=True)
 
     #   if len(sys.argv) == 3:
     #     integrated_df.to_csv('Integrated_dist_allmods.csv')

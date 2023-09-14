@@ -1,13 +1,11 @@
-import pandas as pd 
+import pandas as pd
 import numpy as np
 import sys
-import matplotlib.pyplot as plt
 from datetime import datetime, timedelta, time
 from haversine import haversine, Unit
 from haversine import haversine_vector, Unit
 from tqdm import tqdm
 from time import sleep
-import pyarrow.feather as feather
 from pathlib import Path
 import pytz
 import pyreadr
@@ -21,7 +19,6 @@ import warnings
 warnings.filterwarnings("ignore")
 pd.set_option('display.max_rows', 150)
 from multiprocess import cpu_count
-import gspread
 
 
 def calculate_consecutive_haversine_distances(df):
@@ -85,7 +82,7 @@ def refuel_end_injection(i):
             injected_data.append({'termid':i,'regNumb':term_df.head(1)['regNumb'].item(),'ts':refuel_end_time,
                                   'currentFuelVolumeTank1':refuel_end_level,'Refuel_status':'Refuel_end'})
     injected_df = pd.DataFrame(injected_data)
-#     normal_df=normal_df.append(term_df)  
+#     normal_df=normal_df.append(term_df)
     concat_df = pd.concat([term_df,injected_df],axis=0,ignore_index=True)
     concat_df.sort_values(by=['termid','ts'],inplace=True)
     return concat_df
@@ -255,7 +252,7 @@ def shift_custom_function(group):
     return df
 
 def custom_function(group):
-    
+
     group_1 = group.groupby('date')
     group_result = group_1.apply(shift_custom_function)
 #     print('group result len: ',group_result.shape)
@@ -339,7 +336,7 @@ if __name__ == '__main__':
       new_cst_1=new_cst_1.reset_index(drop=True)    
       new_cst_1['date'] = new_cst_1['ts'].dt.date 
       new_cst_1.drop(['Time_diff','Station Name'],axis=1,inplace=True)
-    #   print(len(new_cst_1))                           
+    #   print(len(new_cst_1))
 
 
     # Error Logging for Output Files
@@ -360,17 +357,10 @@ if __name__ == '__main__':
         # elif (outfile1 == outfile2)or(str(outfile1).split('\\')[-1]==str(outfile2).split('\\')[-1]):
         #   print("OutputFilesNameError: Output file Paths or Names can't be same\nExiting...")
         #   sys.exit(0)
-          
+
         new_cst_1.to_csv(outfile1)
         # final_df1.to_csv(outfile2)
         print(f' Enriched CST is successfully saved to below path: \n{outfile1}.')
       # Check for extra args
       else:
         print('Supports atleast 3 or 4 file arguments.')
-
-
-
-
-
-
-
