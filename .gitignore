@@ -170,7 +170,9 @@ cython_debug/
 #.idea/
 
 # Specific Data Formats
-modules/
-python_in_R/
+modules/*.csv
+modules/*.RDS
+python_in_R/*.csv
+python_in_R/*.RDS
 *.RDS
 *.csv
