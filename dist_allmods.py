@@ -312,6 +312,8 @@ def custom_function(group):
     return pd.DataFrame(group_dict)
 
 def select_ign_time(row):
+    if not row['total_time']:
+      return np.nan
     if ((row['ign_time_ignMaster']/row['total_time'])*100 == 100)or((row['ign_time_ignMaster']/row['total_time'])*100 == 0):
         return row['ign_time_cst']
     else:
@@ -344,6 +346,8 @@ if __name__ == '__main__':
       df['date'] = df['ts'].dt.date.astype(str)
       df['hour'] = df['ts'].dt.hour
       df.rename(columns={'latitude':'lt', 'longitude':'lg'}, inplace=True)
+      faulty_fuel = df[df['currentFuelVolumeTank1'].isnull()]['regNumb'].unique().tolist()
+      df = df[~df['regNumb'].isin(faulty_fuel)]
       termid_list = df['termid'].unique().tolist()
 
       # ign['strt'] = pd.to_datetime(ign['strt'], utc=True)
@@ -361,7 +365,8 @@ if __name__ == '__main__':
       integrated_df = grouped.progress_apply(custom_function)
       integrated_df=integrated_df.reset_index(drop=True)
       integrated_df['final_ign_time'] = integrated_df.apply(select_ign_time, axis=1)
-      integrated_df.drop(['start_hour','end_hour','b_sl','b_st','a_sl','a_st','b_el','b_et','a_el','a_et'],axis=1,inplace=True)
+      if 'b_sl' in integrated_df.columns:
+        integrated_df.drop(['start_hour','end_hour','b_sl','b_st','a_sl','a_st','b_el','b_et','a_el','a_et'],axis=1,inplace=True)
 
       if len(sys.argv) == 3:
         integrated_df.to_csv('Integrated_dist_allmods.csv')
