@@ -141,10 +141,8 @@ def dist_allmods(i):
     if len(term_df['lt']) == 1:
       term_df['Haversine_dist'] = 0.0
     else:
-      # Calculate haversine distances using haversine_vector
       coordinates = np.column_stack((term_df['lt'], term_df['lg']))
       haversine_distances = haversine_vector(coordinates[:-1], coordinates[1:], Unit.METERS)
-      # Insert 0 as the first entry
       haversine_distances = np.concatenate(([0.0], haversine_distances))
 
       term_df['Haversine_dist'] = haversine_distances
@@ -183,14 +181,10 @@ def dist_allmods(i):
           # Calculate haversine distances using haversine_vector
           coordinates = np.column_stack((sample['lt'], sample['lg']))
           haversine_distances = haversine_vector(coordinates[:-1], coordinates[1:], Unit.METERS)
-
-          # Insert 0 as the first entry
           haversine_distances = np.concatenate(([0.0], haversine_distances))
           sample['new_distance'] = haversine_distances
 
           # sample['new_distance']= calculate_consecutive_haversine_distances(sample)
-
-
 
         ig_time = sample[sample['currentIgn']==1]
         start_level=sample.head(1)['currentFuelVolumeTank1'].item()
@@ -312,6 +306,8 @@ def custom_function(group):
     return pd.DataFrame(group_dict)
 
 def select_ign_time(row):
+    if not row['total_time']:
+        return np.nan
     if ((row['ign_time_ignMaster']/row['total_time'])*100 == 100)or((row['ign_time_ignMaster']/row['total_time'])*100 == 0):
         return row['ign_time_cst']
     else:
@@ -360,21 +356,22 @@ if __name__ == '__main__':
       integrated_df = grouped.progress_apply(custom_function)
       integrated_df=integrated_df.reset_index(drop=True)
       integrated_df['final_ign_time'] = integrated_df.apply(select_ign_time, axis=1)
-      integrated_df.drop(['start_hour','end_hour','b_sl','b_st','a_sl','a_st','b_el','b_et','a_el','a_et'],axis=1,inplace=True)
+      print(integrated_df.columns)
+    #   integrated_df.drop(['start_hour','end_hour','b_sl','b_st','a_sl','a_st','b_el','b_et','a_el','a_et'],axis=1,inplace=True)
 
-      if len(sys.argv) == 3:
-        integrated_df.to_csv('Integrated_dist_allmods.csv')
-        print('Data saved successfully to the above path')
+    #   if len(sys.argv) == 3:
+    #     integrated_df.to_csv('Integrated_dist_allmods.csv')
+    #     print('Data saved successfully to the above path')
 
-      # Check whether the last arg is appropriate
-      elif len(sys.argv) == 4:
-        outfile = Path(sys.argv[3])
-        if outfile.suffix != '.csv':
-          print('Need to write output to a CSV file only\nExiting....')
-          sys.exit(0)
-        integrated_df.to_csv(outfile)
-        print(f'Data saved successfully to {outfile}')
+    #   # Check whether the last arg is appropriate
+    #   elif len(sys.argv) == 4:
+    #     outfile = Path(sys.argv[3])
+    #     if outfile.suffix != '.csv':
+    #       print('Need to write output to a CSV file only\nExiting....')
+    #       sys.exit(0)
+    #     integrated_df.to_csv(outfile)
+    #     print(f'Data saved successfully to {outfile}')
 
-      # Check for extra args
-      else:
-        print('Supports atleast 2 and atmost 3 file arguments')
+    #   # Check for extra args
+    #   else:
+    #     print('Supports atleast 2 and atmost 3 file arguments')
