@@ -43,9 +43,8 @@ def disp_cst(i):
         con = pd.concat([term_df,disp_df],axis=0)
         con.sort_values(by=['ts'],inplace=True)
         con.loc[con['termid'].isnull(),'termid']=term_df.head(1)['termid'].item()
-        con['mine'] = term_df.head(1)['mine'].item()
-        # con['Station Name'] = term_df.head(1)['Station Name'].item()
-        con['class'] = term_df.head(1)['class'].item()
+        # con['mine'] = term_df.head(1)['mine'].item()
+        # con['class'] = term_df.head(1)['class'].item()
         return con
     else:
         return term_df
@@ -104,68 +103,70 @@ def refuel_end_cum_distance(i):
 def melt_conc(i):
     ign_term = ign[ign['termid']==i];cst_term=disp_cst2[disp_cst2['termid']==i]
     cst_term=cst_term.reset_index(drop=True);ign_term=ign_term.reset_index(drop=True)
-#     cst_term['Distance'] = calculate_consecutive_haversine_distances(cst_term)
-#     cst_term['cum_distance'] = cst_term['Distance'].cumsum().fillna(0)
-    melt_ign = pd.melt(ign_term,value_vars=['strt','end'],var_name='Indicator',value_name='ts')
-    melt_ign['termid']=str(i);melt_ign['regNumb']=ign_term.head(1)['veh'].item()
-    melt_ign.sort_values(by='ts',inplace=True)
-#     melt_ign.reset_index(drop=True, inplace=True)
-    cst_1 = pd.concat([cst_term,melt_ign],axis=0)
-    cst_1.sort_values(by=['ts'],inplace=True)
-    cst_1.reset_index(drop=True,inplace=True)
-    end_indices = cst_1[cst_1['Indicator'] == 'end'].index
-#     cst_1.loc[end_indices, 'Distance'] = cst_1['Distance'].shift(-1)
-    cst_1.loc[end_indices, 'cum_distance'] = cst_1['cum_distance'].shift(-1)
-    for ind,row in cst_1.iterrows():
-        if (row['Indicator'] in ('end','strt'))&(str(row['cum_distance'])=='nan'):
+    if len(ign_term)!=0:
+#         print(len(ign_term))
+        melt_ign = pd.melt(ign_term,value_vars=['strt','end'],var_name='Indicator',value_name='ts')
+        melt_ign['termid']=str(i);melt_ign['regNumb']=ign_term.head(1)['veh'].item()
+        melt_ign.sort_values(by='ts',inplace=True)
+    #     melt_ign.reset_index(drop=True, inplace=True)
+        cst_1 = pd.concat([cst_term,melt_ign],axis=0)
+        cst_1.sort_values(by=['ts'],inplace=True)
+        cst_1.reset_index(drop=True,inplace=True)
+        end_indices = cst_1[cst_1['Indicator'] == 'end'].index
+    #     cst_1.loc[end_indices, 'Distance'] = cst_1['Distance'].shift(-1)
+        cst_1.loc[end_indices, 'cum_distance'] = cst_1['cum_distance'].shift(-1)
+        for ind,row in cst_1.iterrows():
+            if (row['Indicator'] in ('end','strt'))&(str(row['cum_distance'])=='nan'):
+                temp_df = cst_term[cst_term['ts']<pd.to_datetime(row['ts'])]
+                a_df = cst_term[cst_term['ts']>pd.to_datetime(row['ts'])]
+                if (len(temp_df)!=0)&(len(a_df)!=0):
+                    s_time=temp_df.tail(1)['ts'].item()
+                    e_time=a_df.head(1)['ts'].item()
+    #                 s_level=temp_df.tail(1)['Distance'].item()
+                    s_level_1=temp_df.tail(1)['cum_distance'].item()
+    #                 e_level=a_df.head(1)['Distance'].item()
+                    e_level_1=a_df.head(1)['cum_distance'].item()
+    #                 cst_1.loc[ind,'Distance'] = new_fuel(s_time,e_time,s_level,e_level,row['ts'])
+                    cst_1.loc[ind,'cum_distance'] = new_fuel(s_time,e_time,s_level_1,e_level_1,row['ts'])
+                elif len(temp_df)==0:
+    #                 cst_1.loc[ind,'Distance'] = a_df.head(1)['Distance'].item()
+                    cst_1.loc[ind,'cum_distance'] = a_df.head(1)['cum_distance'].item()
+                else:
+    #                 cst_1.loc[ind,'Distance'] = temp_df.tail(1)['Distance'].item()
+                    cst_1.loc[ind,'cum_distance'] = temp_df.tail(1)['cum_distance'].item()
+    #     groups = Off_On_grouping(cst_1['Indicator'].tolist())
+    #     for j in groups:
+    #         cst_1.loc[j[0]+1:j[1],'Distance'] = 0
+        cst_1.sort_values(by=['ts','Indicator'],inplace=True)
+        cst_1.reset_index(drop=True,inplace=True)
+        fil_strt=cst_1.query("Indicator=='strt'")
+        for ind,row in fil_strt.iterrows():
+    #         if ind!=0:
             temp_df = cst_term[cst_term['ts']<pd.to_datetime(row['ts'])]
             a_df = cst_term[cst_term['ts']>pd.to_datetime(row['ts'])]
             if (len(temp_df)!=0)&(len(a_df)!=0):
                 s_time=temp_df.tail(1)['ts'].item()
-                e_time=a_df.head(1)['ts'].item()
-#                 s_level=temp_df.tail(1)['Distance'].item()
-                s_level_1=temp_df.tail(1)['cum_distance'].item()
-#                 e_level=a_df.head(1)['Distance'].item()
-                e_level_1=a_df.head(1)['cum_distance'].item()
-#                 cst_1.loc[ind,'Distance'] = new_fuel(s_time,e_time,s_level,e_level,row['ts'])
-                cst_1.loc[ind,'cum_distance'] = new_fuel(s_time,e_time,s_level_1,e_level_1,row['ts'])
+                e_time=cst_term[cst_term['ts']>pd.to_datetime(row['ts'])].head(1)['ts'].item()
+                s_level=temp_df.tail(1)['currentFuelVolumeTank1'].item()
+                e_level=cst_term[cst_term['ts']>pd.to_datetime(row['ts'])].head(1)['currentFuelVolumeTank1'].item()
+                cst_1.loc[ind,'currentFuelVolumeTank1']= new_fuel(s_time,e_time,s_level,e_level,row['ts'])
             elif len(temp_df)==0:
-#                 cst_1.loc[ind,'Distance'] = a_df.head(1)['Distance'].item()
-                cst_1.loc[ind,'cum_distance'] = a_df.head(1)['cum_distance'].item()
+                cst_1.loc[ind,'currentFuelVolumeTank1'] = a_df.head(1)['currentFuelVolumeTank1'].item()
             else:
-#                 cst_1.loc[ind,'Distance'] = temp_df.tail(1)['Distance'].item()
-                cst_1.loc[ind,'cum_distance'] = temp_df.tail(1)['cum_distance'].item()
-#     groups = Off_On_grouping(cst_1['Indicator'].tolist())
-#     for j in groups:
-#         cst_1.loc[j[0]+1:j[1],'Distance'] = 0
-    cst_1.sort_values(by=['ts','Indicator'],inplace=True)
-    cst_1.reset_index(drop=True,inplace=True)
-    fil_strt=cst_1.query("Indicator=='strt'")
-    for ind,row in fil_strt.iterrows():
-#         if ind!=0:
-        temp_df = cst_term[cst_term['ts']<pd.to_datetime(row['ts'])]
-        a_df = cst_term[cst_term['ts']>pd.to_datetime(row['ts'])]
-        if (len(temp_df)!=0)&(len(a_df)!=0):
-            s_time=temp_df.tail(1)['ts'].item()
-            e_time=cst_term[cst_term['ts']>pd.to_datetime(row['ts'])].head(1)['ts'].item()
-            s_level=temp_df.tail(1)['currentFuelVolumeTank1'].item()
-            e_level=cst_term[cst_term['ts']>pd.to_datetime(row['ts'])].head(1)['currentFuelVolumeTank1'].item()
-            cst_1.loc[ind,'currentFuelVolumeTank1']= new_fuel(s_time,e_time,s_level,e_level,row['ts'])
-        elif len(temp_df)==0:
-            cst_1.loc[ind,'currentFuelVolumeTank1'] = a_df.head(1)['currentFuelVolumeTank1'].item()
-        else:
-            cst_1.loc[ind,'currentFuelVolumeTank1'] = temp_df.tail(1)['currentFuelVolumeTank1'].item()
-    end_indices = cst_1[cst_1['Indicator'] == 'end'].index
-    cst_1.loc[end_indices, 'currentFuelVolumeTank1'] = cst_1['currentFuelVolumeTank1'].shift(-1)
-    cst_1['termid'] = cst_1['termid'].astype(int)
-    cst_1.sort_values(by=['ts','Indicator'],na_position='first',inplace=True)
-    cst_1.reset_index(drop=True,inplace=True)
-    duplicated = [int(i) - 1 for i in cst_1[cst_1['ts'].duplicated()].index.tolist()]
-    for l in duplicated:
-        cst_1.loc[l,'Indicator'] = cst_1.loc[l+1,'Indicator']
-    cst_1.drop_duplicates(subset=['ts'],keep='first',inplace=True)
-    cst_1['mine']=cst_term.head(1)['mine'].item()
-    cst_1['class'] = cst_term.head(1)['mine'].item()
+                cst_1.loc[ind,'currentFuelVolumeTank1'] = temp_df.tail(1)['currentFuelVolumeTank1'].item()
+        end_indices = cst_1[cst_1['Indicator'] == 'end'].index
+        cst_1.loc[end_indices, 'currentFuelVolumeTank1'] = cst_1['currentFuelVolumeTank1'].shift(-1)
+        cst_1['termid'] = cst_1['termid'].astype(int)
+        cst_1.sort_values(by=['ts','Indicator'],na_position='first',inplace=True)
+        cst_1.reset_index(drop=True,inplace=True)
+        duplicated = [int(i) - 1 for i in cst_1[cst_1['ts'].duplicated()].index.tolist()]
+        for l in duplicated:
+            cst_1.loc[l,'Indicator'] = cst_1.loc[l+1,'Indicator']
+        cst_1.drop_duplicates(subset=['ts'],keep='first',inplace=True)
+        # cst_1['mine']=cst_term.head(1)['mine'].item()
+        # cst_1['class'] = cst_term.head(1)['mine'].item()
+    else:
+        cst_1 = cst_term.copy()
 
     return cst_1
 
@@ -181,6 +182,10 @@ def shift_custom_function(group):
         time_1_level=tem.head(1)['currentFuelVolumeTank1'].item()
 #         time_1_dist=tem.head(1)['Distance'].item()
         time_1_cum_dist=tem.head(1)['cum_distance'].item()
+    elif len(tem)==0:
+        time_1_level=temp.tail(1)['currentFuelVolumeTank1'].item()
+#         time_1_dist=tem.head(1)['Distance'].item()
+        time_1_cum_dist=temp.tail(1)['cum_distance'].item()
     else:
         time_1_level = new_fuel(temp.tail(1)['ts'].item(),tem.head(1)['ts'].item(),
                                temp.tail(1)['currentFuelVolumeTank1'].item(),
@@ -240,7 +245,7 @@ def shift_custom_function(group):
     temp_df['termid'] = group.head(1)['termid'].item()
     temp_df['regNumb'] = group.head(1)['regNumb'].item()
     temp_df['ts'] = pd.to_datetime(temp_df['ts'])
-    temp_df['mine'] = group.head(1)['mine'].item();temp_df['class'] = group.head(1)['class'].item()
+    # temp_df['mine'] = group.head(1)['mine'].item();temp_df['class'] = group.head(1)['class'].item()
     df = pd.concat([group,temp_df],axis=0)
     df.sort_values(by=['ts','direction'],na_position='last',inplace=True)
     df.drop_duplicates(subset=['ts'],inplace=True)
@@ -253,9 +258,9 @@ def custom_function(group):
 #     print('group result len: ',group_result.shape)
     group_result=group_result.reset_index(drop=True)
 #     print('group result len: ',len(group_result))
-    group_result.drop(['timestamp'],axis=1,inplace=True)
-    group_result['mine']= group.head(1)['mine'].item()
-    group_result['class'] = group.head(1)['mine'].item()
+    # group_result.drop(['timestamp'],axis=1,inplace=True)
+    # group_result['mine']= group.head(1)['mine'].item()
+    # group_result['class'] = group.head(1)['mine'].item()
     group_result['Distance'] = group_result['cum_distance'].diff().fillna(0)
     return group_result
 
@@ -272,46 +277,64 @@ if __name__ == '__main__':
       infile_cst, infile_igtn,disp = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
 
       # Check validity of both args at once
-      if (infile_cst.suffix == infile_igtn.suffix != '.RDS') or (disp.suffix!='.csv'):
+      if (infile_igtn.suffix != '.RDS') or (disp.suffix!='.csv'):
         print('FileFormatError: Only RDS files for cst/ign and csv for Hec data applicable as input\nExiting....')
         sys.exit(0)
-
-      cst = pyreadr.read_r(infile_cst)[None]
-      ign = pyreadr.read_r(infile_igtn)[None]
-      cst['ts'] = cst['ts'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+      if infile_cst.suffix == '.RDS':
+          cst = pyreadr.read_r(infile_cst)[None]
+          cst['ts'] = cst['ts'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+          
+      else:
+          cst = pd.read_csv(infile_cst)
+        #   cst['ts'] = cst['ts'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+          cst['ts'] = pd.to_datetime(cst['ts'])
       cst['date'] = pd.to_datetime(cst['ts']).dt.date.astype(str)
       cst.rename(columns={'latitude':'lt', 'longitude':'lg'}, inplace=True)
+      ign = pyreadr.read_r(infile_igtn)[None]
       faulty_fuel = cst[cst['currentFuelVolumeTank1'].isnull()]['regNumb'].unique().tolist()
       cst = cst[~cst['regNumb'].isin(faulty_fuel)]
+      start_time = cst['ts'].min();end_time=cst['ts'].max()
       ign.rename(columns={'stop':'end'}, inplace=True)
       ign['strt'] = ign['strt'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
       ign['end'] = ign['end'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+      ign = ign[(ign['strt']>=cst['ts'].min())&(ign['end']<=cst['ts'].max())]
       ign['termid'] = ign['termid'].astype(int)
       ign = ign[['termid','veh','strt','end']]
-      termid_list = cst[cst['termid'].isin(ign['termid'])]['termid'].unique().tolist()
+    #   termid_list = cst[cst['termid'].isin(ign['termid'])]['termid'].unique().tolist()
+    #   regNumb_list = cst[cst['termid'].isin(ign['termid'])]['regNumb'].unique().tolist()
+      termid_list = cst['termid'].unique().tolist()
+      regNumb_list = cst['regNumb'].unique().tolist()
       disp = pd.read_csv(disp)
       disp.rename(columns={'Vehicle Number':'regNumb','Date':'date','Time Stamp':'ts'},inplace=True)
       disp=disp[disp['regNumb'].isin(cst['regNumb'])][['ts','date','Station Name','regNumb','Quantity']]
-      disp['Refuel_status'] = 'Refuel'
-      disp['ts'] = pd.to_datetime(disp['ts'], format='%m/%d/%Y, %I:%M:%S %p')
-      disp['Quantity'] = disp['Quantity'].str.replace(',','').astype(float)
-      disp = disp[disp['Quantity']>20]
-      regNumb_list = cst[cst['termid'].isin(ign['termid'])]['regNumb'].unique().tolist()
-
       if len(cst)==0:
         print('CstDataError: Fuel levels API values error/Blank. Kindly pass a valid cst data.\nExiting....')
         sys.exit(0)
-
-      disp_cst = pd.concat([disp_cst(i) for i in tqdm(regNumb_list[:1])])
-      disp_cst1 = pd.concat([refuel_end_injection(i) for i in tqdm(termid_list[:1])])
-      disp_cst2 = pd.concat([refuel_end_cum_distance(i) for i in tqdm(termid_list[:1])])
-      new_cst = pd.concat([melt_conc(termid) for termid in tqdm(termid_list[:1])])
+    #   if len(disp)!=0:
+      disp['Refuel_status'] = 'Refuel'
+      disp['ts'] = pd.to_datetime(disp['ts'], format='%m/%d/%Y, %I:%M:%S %p')
+      disp = disp[(disp['ts']>=cst['ts'].min())&(disp['ts']<=cst['ts'].max())]
+      disp['Quantity'] = disp['Quantity'].str.replace(',','').astype(float)
+      disp = disp[disp['Quantity']>20]
+      print(ign['strt'].min(),ign['end'].max())
+      disp_cst = pd.concat([disp_cst(i) for i in tqdm(regNumb_list)])
+    #   print(disp_cst.head())
+    #   print(disp_cst.tail())
+      disp_cst1 = pd.concat([refuel_end_injection(i) for i in tqdm(termid_list)])
+    #   print(disp_cst1.head())
+      disp_cst2 = pd.concat([refuel_end_cum_distance(i) for i in tqdm(termid_list)])
+    # #   else:
+    # #   disp_cst2 = cst.copy()
+      new_cst = pd.concat([melt_conc(termid) for termid in tqdm(termid_list)])
       new_cst['termid']=new_cst['termid'].astype(int)
       new_cst['date'] = new_cst['ts'].dt.date
       grouped = new_cst.groupby('termid')
+    #   print(termid_list[4:])
+    #   print(new_cst.query("termid in termid_list[4:6]"))
       new_cst_1=grouped.progress_apply(custom_function)
-      new_cst_1=new_cst_1.reset_index(drop=True)
-      new_cst_1['date'] = new_cst_1['ts'].dt.date
+      print(new_cst_1.columns,new_cst_1.head())
+      new_cst_1=new_cst_1.reset_index(drop=True)    
+      new_cst_1['date'] = new_cst_1['ts'].dt.date 
       new_cst_1.drop(['Time_diff','Station Name'],axis=1,inplace=True)
     #   print(len(new_cst_1))
 
