@@ -43,8 +43,8 @@ def disp_cst(i):
         con = pd.concat([term_df,disp_df],axis=0)
         con.sort_values(by=['ts'],inplace=True)
         con.loc[con['termid'].isnull(),'termid']=term_df.head(1)['termid'].item()
-        con['mine'] = term_df.head(1)['mine'].item()
-        con['class'] = term_df.head(1)['class'].item()
+        # con['mine'] = term_df.head(1)['mine'].item()
+        # con['class'] = term_df.head(1)['class'].item()
         return con
     else:
         return term_df
@@ -163,8 +163,8 @@ def melt_conc(i):
         for l in duplicated:
             cst_1.loc[l,'Indicator'] = cst_1.loc[l+1,'Indicator']
         cst_1.drop_duplicates(subset=['ts'],keep='first',inplace=True)
-        cst_1['mine']=cst_term.head(1)['mine'].item()
-        cst_1['class'] = cst_term.head(1)['mine'].item()
+        # cst_1['mine']=cst_term.head(1)['mine'].item()
+        # cst_1['class'] = cst_term.head(1)['mine'].item()
     else:
         cst_1 = cst_term.copy()
 
@@ -245,7 +245,7 @@ def shift_custom_function(group):
     temp_df['termid'] = group.head(1)['termid'].item()
     temp_df['regNumb'] = group.head(1)['regNumb'].item()
     temp_df['ts'] = pd.to_datetime(temp_df['ts'])
-    temp_df['mine'] = group.head(1)['mine'].item();temp_df['class'] = group.head(1)['class'].item()
+    # temp_df['mine'] = group.head(1)['mine'].item();temp_df['class'] = group.head(1)['class'].item()
     df = pd.concat([group,temp_df],axis=0)
     df.sort_values(by=['ts','direction'],na_position='last',inplace=True)
     df.drop_duplicates(subset=['ts'],inplace=True)
@@ -258,9 +258,9 @@ def custom_function(group):
 #     print('group result len: ',group_result.shape)
     group_result=group_result.reset_index(drop=True)
 #     print('group result len: ',len(group_result))
-    group_result.drop(['timestamp'],axis=1,inplace=True)
-    group_result['mine']= group.head(1)['mine'].item()
-    group_result['class'] = group.head(1)['mine'].item()
+    # group_result.drop(['timestamp'],axis=1,inplace=True)
+    # group_result['mine']= group.head(1)['mine'].item()
+    # group_result['class'] = group.head(1)['mine'].item()
     group_result['Distance'] = group_result['cum_distance'].diff().fillna(0)
     return group_result
 
@@ -332,8 +332,9 @@ if __name__ == '__main__':
     #   print(termid_list[4:])
     #   print(new_cst.query("termid in termid_list[4:6]"))
       new_cst_1=grouped.progress_apply(custom_function)
-      new_cst_1=new_cst_1.reset_index(drop=True)
-      new_cst_1['date'] = new_cst_1['ts'].dt.date
+      print(new_cst_1.columns,new_cst_1.head())
+      new_cst_1=new_cst_1.reset_index(drop=True)    
+      new_cst_1['date'] = new_cst_1['ts'].dt.date 
       new_cst_1.drop(['Time_diff','Station Name'],axis=1,inplace=True)
     #   print(len(new_cst_1))
 
