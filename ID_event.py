@@ -1,7 +1,7 @@
 import pandas as pd 
 import numpy as np
 import sys
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 from datetime import datetime, timedelta, time
 from haversine import haversine, Unit
 from haversine import haversine_vector, Unit
@@ -409,6 +409,10 @@ if __name__ == '__main__':
         ign['strt'] = ign['strt'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
         ign['end'] = ign['end'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
         ign = ign[(ign['strt']>=new_cst_1['ts'].min())&(ign['end']<=new_cst_1['ts'].max())]
+
+        # print(new_cst_1[new_cst_1['termid']==1204000244].query("date=='2023-09-10'")[['ts','currentIgn','Indicator']])
+        # print(final_id_grouping(1204000244))
+
         ign['termid'] = ign['termid'].astype(int)
 
         termid_list = new_cst_1['termid'].unique().tolist()
